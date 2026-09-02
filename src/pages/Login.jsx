@@ -9,7 +9,7 @@ export default function Login() {
   const { login, autenticacaoReal } = useAuth();
   const { escritorio } = useApp();
   const navigate = useNavigate();
-  const [email, setEmail] = useState(autenticacaoReal ? "" : "felipe@openlegaliza.com.br");
+  const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [entrando, setEntrando] = useState(false);
