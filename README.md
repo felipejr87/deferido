@@ -141,3 +141,4 @@ conectados**.
   proposta" e "Portal do cliente" são visualizações dentro do mesmo app
   (toggle Sistema/Visão do cliente), não uma rota pública de verdade sem
   autenticação de operador por trás.
+
