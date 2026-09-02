@@ -48,7 +48,7 @@ export default function Relatorios() {
           <Th>Categoria</Th>
           <Th right>Faturamento</Th>
         </Table>
-        <div style={{ border: "1px solid #E4E7EC", borderTop: "none" }}>
+        <div style={{ border: "1px solid #E4E7EC", borderTop: "none", overflowX: "auto" }}>
           {porServico.map((r) => (
             <Row key={r.servico} cols={gridColsFat}>
               <div style={{ fontSize: 13 }}>{r.servico}</div>
@@ -77,7 +77,7 @@ export default function Relatorios() {
           <Th right>Propostas</Th>
           <Th right>Fechados</Th>
         </Table>
-        <div style={{ border: "1px solid #E4E7EC", borderTop: "none" }}>
+        <div style={{ border: "1px solid #E4E7EC", borderTop: "none", overflowX: "auto" }}>
           {conversao.map((c) => (
             <Row key={c.origem} cols={gridColsConv}>
               <div style={{ fontSize: 13, textTransform: "capitalize" }}>{c.origem}</div>

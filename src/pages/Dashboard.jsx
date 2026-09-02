@@ -30,7 +30,7 @@ export default function Dashboard() {
     <Page style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <section>
         <div style={{ fontSize: 12, color: "#8A929E", letterSpacing: ".05em", textTransform: "uppercase", marginBottom: 10 }}>Comercial</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14 }}>
           <Kpi label="Propostas aguardando" valor={String(propostasAguardando.length)} nota="resposta do cliente" />
           <Kpi label="Taxa de conversão" valor="50%" nota="+8 p.p. vs julho" />
           <Kpi label="Ticket médio" valor={brl(1270)} nota="últimos 30 dias" />
@@ -40,7 +40,7 @@ export default function Dashboard() {
 
       <section>
         <div style={{ fontSize: 12, color: "#8A929E", letterSpacing: ".05em", textTransform: "uppercase", marginBottom: 10 }}>Operacional</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14 }}>
           <Kpi label="Processos em andamento" valor={String(PROCESSOS.length)} nota={Object.entries(contagemPorStatus).map(([k, v]) => `${v} ${PSTATUS[k].label.toLowerCase()}`).join(", ")} />
           <Kpi label="Processos parados" valor={String(processosParados.length)} nota="5+ dias sem movimentação ⚠️" />
           <Kpi label="Documentos pendentes" valor="1" nota="cliente ainda não enviou" />
@@ -50,7 +50,7 @@ export default function Dashboard() {
 
       <section>
         <div style={{ fontSize: 12, color: "#8A929E", letterSpacing: ".05em", textTransform: "uppercase", marginBottom: 10 }}>Financeiro</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14 }}>
           <Kpi label="A receber este mês" valor={brl(4870)} nota="6 cobranças em aberto" />
           <Kpi label="Recebido este mês" valor={brl(11430)} nota="9 propostas aceitas" />
           <Kpi label="Inadimplência" valor="4%" nota="1 cobrança vencida" />

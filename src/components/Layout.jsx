@@ -1,7 +1,10 @@
+import { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, useParams } from "react-router-dom";
+import { Menu, X } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import { useFeatures } from "../context/FeatureContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useIsMobile } from "../hooks/useIsMobile.js";
 import { PROPOSTAS, PROCESSOS, SERVICOS } from "../data/mock.js";
 import { routeMeta } from "../routesConfig.js";
 import { Tracked } from "./Tracked.jsx";
@@ -13,6 +16,14 @@ export default function Layout() {
   const params = useParams();
   const { flags } = useFeatures();
   const { session, logout } = useAuth();
+  const isMobile = useIsMobile();
+  const [drawerAberto, setDrawerAberto] = useState(false);
+
+  // Troca de rota (inclusive pelo menu) sempre fecha o drawer no mobile —
+  // senão a próxima tela abre com o menu ainda em cima.
+  useEffect(() => {
+    setDrawerAberto(false);
+  }, [location.pathname]);
 
   const meta = routeMeta(location.pathname, params.numero);
 
@@ -80,46 +91,74 @@ export default function Layout() {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
+      {isMobile && drawerAberto && (
+        <div
+          onClick={() => setDrawerAberto(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(14,20,32,.5)", zIndex: 1150 }}
+        />
+      )}
+
       <aside
         style={{
           width: 244,
-          flex: "0 0 244px",
+          maxWidth: "82vw",
+          flex: isMobile ? "0 0 auto" : "0 0 244px",
           background: "#0E1420",
           color: "#C8CFDA",
           display: "flex",
           flexDirection: "column",
           padding: "20px 0",
           overflowY: "auto",
+          ...(isMobile
+            ? {
+                position: "fixed",
+                top: 0,
+                left: 0,
+                bottom: 0,
+                zIndex: 1200,
+                transform: drawerAberto ? "translateX(0)" : "translateX(-100%)",
+                transition: "transform .2s ease",
+                boxShadow: drawerAberto ? "0 0 30px rgba(0,0,0,.4)" : "none",
+              }
+            : {}),
         }}
       >
-        <Tracked
-          as="div"
-          tag="nav_home"
-          onClick={() => navigate("/dashboard")}
-          style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 20px 20px 20px", cursor: "pointer" }}
-        >
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 5,
-              background: escritorio.corPrimaria,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: ".02em",
-            }}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px 20px 20px" }}>
+          <Tracked
+            as="div"
+            tag="nav_home"
+            onClick={() => navigate("/dashboard")}
+            style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", minWidth: 0 }}
           >
-            OL
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <div style={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>{escritorio.nome}</div>
-            <div style={{ fontSize: 11, color: "#6C7787" }}>Corporate Services</div>
-          </div>
-        </Tracked>
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                flex: "0 0 30px",
+                borderRadius: 5,
+                background: escritorio.corPrimaria,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: ".02em",
+              }}
+            >
+              OL
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+              <div style={{ color: "#fff", fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{escritorio.nome}</div>
+              <div style={{ fontSize: 11, color: "#6C7787" }}>Corporate Services</div>
+            </div>
+          </Tracked>
+          {isMobile && (
+            <Tracked as="div" tag="drawer_fechar" onClick={() => setDrawerAberto(false)} style={{ color: "#98A0AC", cursor: "pointer", flex: "0 0 auto", padding: 4 }}>
+              <X size={18} />
+            </Tracked>
+          )}
+        </div>
 
         {groups.map((g) => (
           <div key={g.titulo} style={{ padding: "10px 10px 4px 10px" }}>
@@ -184,19 +223,43 @@ export default function Layout() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: 16,
-            padding: "16px 28px",
+            gap: isMobile ? 10 : 16,
+            flexWrap: isMobile ? "wrap" : "nowrap",
+            padding: isMobile ? "12px 14px" : "16px 28px",
             background: "#fff",
             borderBottom: "1px solid #E4E7EC",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <div style={{ fontSize: 11, color: "#8A929E", letterSpacing: ".06em", textTransform: "uppercase" }}>
-              {meta.crumb}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            {isMobile && (
+              <Tracked
+                as="div"
+                tag="drawer_abrir"
+                onClick={() => setDrawerAberto(true)}
+                style={{ flex: "0 0 auto", padding: 6, cursor: "pointer", color: "#3C4453" }}
+              >
+                <Menu size={20} />
+              </Tracked>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: "#8A929E", letterSpacing: ".06em", textTransform: "uppercase" }}>
+                {meta.crumb}
+              </div>
+              <div
+                style={{
+                  fontSize: isMobile ? 15 : 19,
+                  fontWeight: 600,
+                  letterSpacing: "-.01em",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {meta.titulo}
+              </div>
             </div>
-            <div style={{ fontSize: 19, fontWeight: 600, letterSpacing: "-.01em" }}>{meta.titulo}</div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             {meta.modos && (
               <div style={{ display: "flex", border: "1px solid #DDE1E7", borderRadius: 7, overflow: "hidden", background: "#F7F8FA" }}>
                 {[
@@ -212,7 +275,7 @@ export default function Layout() {
                       className="ol-modo"
                       onClick={() => navigate(m.path)}
                       style={{
-                        padding: "7px 13px",
+                        padding: isMobile ? "6px 10px" : "7px 13px",
                         fontSize: 12.5,
                         cursor: "pointer",
                         background: active ? "#FFFFFF" : "transparent",
@@ -231,13 +294,14 @@ export default function Layout() {
               className="ol-btn-primary"
               onClick={() => navigate("/propostas/nova")}
               style={{
-                padding: "9px 15px",
+                padding: isMobile ? "8px 12px" : "9px 15px",
                 borderRadius: 7,
                 background: escritorio.corPrimaria,
                 color: "#fff",
                 fontSize: 13,
                 fontWeight: 500,
                 cursor: "pointer",
+                whiteSpace: "nowrap",
               }}
             >
               Nova proposta

@@ -83,3 +83,12 @@ button {
     display: none !important;
   }
 }
+
+.ol-page {
+  padding: 24px 28px 40px 28px;
+}
+@media (max-width: 640px) {
+  .ol-page {
+    padding: 16px 14px 28px 14px;
+  }
+}

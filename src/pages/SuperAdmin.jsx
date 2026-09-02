@@ -46,7 +46,7 @@ export default function SuperAdmin() {
         <Th>Desde</Th>
         <Th right>Ação</Th>
       </Table>
-      <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderTop: "none", borderRadius: "0 0 9px 9px", overflow: "hidden" }}>
+      <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderTop: "none", borderRadius: "0 0 9px 9px", overflowX: "auto" }}>
         {escritorios.map((e) => {
           const st = STATUS_UI[e.status];
           const plano = PLANOS.find((p) => p.id === e.plano);

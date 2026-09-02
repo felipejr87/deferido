@@ -23,7 +23,7 @@ export default function Processos() {
   }, []);
 
   return (
-    <div style={{ padding: "24px 28px 40px 28px" }}>
+    <div className="ol-page">
       <div style={{ marginBottom: 14 }}>
         <Badge bg={real ? "#EAF6EE" : "#F1F3F6"} fg={real ? "#1F6F4C" : "#5C6675"}>
           {real ? "dados do Postgres" : "dados de exemplo (offline)"}

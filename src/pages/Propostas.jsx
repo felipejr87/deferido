@@ -32,7 +32,7 @@ export default function Propostas() {
   }, []);
 
   return (
-    <div style={{ padding: "24px 28px 40px 28px" }}>
+    <div className="ol-page">
       <div style={{ marginBottom: 14 }}>
         <Badge bg={real ? "#EAF6EE" : "#F1F3F6"} fg={real ? "#1F6F4C" : "#5C6675"}>
           {real ? "dados do Postgres" : "dados de exemplo (offline)"}
@@ -48,7 +48,7 @@ export default function Propostas() {
         </div>
       )}
       {importando && <ImportarConversa onFechar={() => setImportando(false)} />}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 22 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 22 }}>
         {KPIS.map((k) => (
           <div
             key={k.label}

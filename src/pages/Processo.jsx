@@ -3,6 +3,7 @@ import { PSTATUS, EVENTOS } from "../data/mock.js";
 import { useApp } from "../context/AppContext.jsx";
 import { Tracked } from "../components/Tracked.jsx";
 import { track } from "../lib/analytics.js";
+import { useIsMobile } from "../hooks/useIsMobile.js";
 
 const PROC_BASE = {
   numero: "#0087",
@@ -17,13 +18,14 @@ export default function Processo() {
   const navigate = useNavigate();
   const { escritorio, etapasOk, toggleEtapa, docsOk, toggleDoc, ETAPAS, DOCS, processoDemo } = useApp();
   const PROC = { ...PROC_BASE, ...processoDemo };
+  const isMobile = useIsMobile();
 
   const st = PSTATUS[PROC.status];
   const progresso = Math.round((etapasOk.length / ETAPAS.length) * 100) + "%";
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 356px", alignItems: "start", minHeight: "100%" }}>
-      <div style={{ minWidth: 0, padding: "24px 28px 40px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0,1fr) 356px", alignItems: "start", minHeight: "100%" }}>
+      <div style={{ minWidth: 0, padding: isMobile ? "16px 16px 24px 16px" : "24px 28px 40px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
         <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderRadius: 9, padding: 18, display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -163,7 +165,18 @@ export default function Processo() {
         </div>
       </div>
 
-      <div style={{ borderLeft: "1px solid #E4E7EC", background: "#fff", padding: "24px 24px 40px 24px", minHeight: "100%", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div
+        style={{
+          borderLeft: isMobile ? "none" : "1px solid #E4E7EC",
+          borderTop: isMobile ? "1px solid #E4E7EC" : "none",
+          background: "#fff",
+          padding: isMobile ? "20px 16px 32px 16px" : "24px 24px 40px 24px",
+          minHeight: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+        }}
+      >
         <div style={{ fontSize: 13, fontWeight: 600 }}>Linha do tempo</div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           {[...EVENTOS].reverse().map((ev, idx) => (

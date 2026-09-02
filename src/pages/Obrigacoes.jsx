@@ -40,7 +40,7 @@ export default function Obrigacoes() {
         <Th>Vencimento</Th>
         <Th right>Status</Th>
       </Table>
-      <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderTop: "none", borderRadius: "0 0 9px 9px", overflow: "hidden" }}>
+      <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderTop: "none", borderRadius: "0 0 9px 9px", overflowX: "auto" }}>
         {obrigacoes.map((o) => {
           const st = STATUS_UI[o.status];
           return (

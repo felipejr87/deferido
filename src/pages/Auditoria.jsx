@@ -40,7 +40,7 @@ export default function Auditoria() {
             <Th>Evento</Th>
             <Th>Usuário</Th>
           </Table>
-          <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderTop: "none", borderRadius: "0 0 9px 9px", overflow: "hidden" }}>
+          <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderTop: "none", borderRadius: "0 0 9px 9px", overflowX: "auto" }}>
             {log.map((entry) => {
               const cor = ACAO_COR[entry.acao] ?? { bg: "#F1F3F6", fg: "#5C6675" };
               return (

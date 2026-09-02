@@ -10,6 +10,7 @@ import { sugerirCnae } from "../data/cnae.js";
 import { salvarPropostaReal } from "../lib/data.js";
 import { supabaseConectado } from "../lib/supabaseClient.js";
 import { SecondaryButton, Badge } from "../components/ui.jsx";
+import { useIsMobile } from "../hooks/useIsMobile.js";
 
 const OPCOES_PARCELAS = [
   { value: "1", label: "À vista" },
@@ -23,6 +24,7 @@ const TOKEN = "a7f3c1e908d2b45f";
 
 export default function NovaProposta() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const {
     escritorio,
     linhas,
@@ -114,11 +116,11 @@ export default function NovaProposta() {
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 372px", gap: 0, alignItems: "start", minHeight: "100%" }}>
-      <div style={{ minWidth: 0, padding: "24px 28px 40px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0,1fr) 372px", gap: 0, alignItems: "start", minHeight: "100%" }}>
+      <div style={{ minWidth: 0, padding: isMobile ? "16px 16px 24px 16px" : "24px 28px 40px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
         <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderRadius: 9, padding: 18 }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 14 }}>Cliente</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
             <Field label="Nome / razão social">
               <TrackedInput
                 tag="cliente_nome_input"
@@ -275,9 +277,10 @@ export default function NovaProposta() {
 
       <div
         style={{
-          borderLeft: "1px solid #E4E7EC",
+          borderLeft: isMobile ? "none" : "1px solid #E4E7EC",
+          borderTop: isMobile ? "1px solid #E4E7EC" : "none",
           background: "#fff",
-          padding: "24px 24px 40px 24px",
+          padding: isMobile ? "20px 16px 32px 16px" : "24px 24px 40px 24px",
           minHeight: "100%",
           display: "flex",
           flexDirection: "column",

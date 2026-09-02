@@ -68,7 +68,7 @@ export default function Usuarios() {
         <Th>Último acesso</Th>
         <Th right>Ação</Th>
       </Table>
-      <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderTop: "none", borderRadius: "0 0 9px 9px", overflow: "hidden" }}>
+      <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderTop: "none", borderRadius: "0 0 9px 9px", overflowX: "auto" }}>
         {usuarios.map((u) => (
           <Row key={u.id} cols={gridCols}>
             <div style={{ fontWeight: 500, opacity: u.ativo ? 1 : 0.5 }}>{u.nome}</div>

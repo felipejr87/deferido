@@ -172,7 +172,7 @@ export default function Arquivos() {
             <Th>Enviado por</Th>
             <Th>Quando</Th>
           </Table>
-          <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderTop: "none", borderRadius: "0 0 9px 9px", overflow: "hidden" }}>
+          <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderTop: "none", borderRadius: "0 0 9px 9px", overflowX: "auto" }}>
             {arquivos.map((a) => (
               <Row key={a.id} cols={gridCols}>
                 <div style={{ fontWeight: 500, fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>

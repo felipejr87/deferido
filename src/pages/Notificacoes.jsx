@@ -40,7 +40,7 @@ export default function Notificacoes() {
           <Th>Cliente</Th>
           <Th>Escritório</Th>
         </Table>
-        <div style={{ border: "1px solid #E4E7EC", borderTop: "none" }}>
+        <div style={{ border: "1px solid #E4E7EC", borderTop: "none", overflowX: "auto" }}>
           {EVENTOS_NOTIFICACAO.map((e) => (
             <Row key={e.evento} cols={gridColsMatrix}>
               <div style={{ fontSize: 13 }}>{e.label}</div>
@@ -60,7 +60,7 @@ export default function Notificacoes() {
           <Th>Status</Th>
           <Th>Quando</Th>
         </Table>
-        <div style={{ border: "1px solid #E4E7EC", borderTop: "none" }}>
+        <div style={{ border: "1px solid #E4E7EC", borderTop: "none", overflowX: "auto" }}>
           {NOTIFICACOES_LOG_SEED.map((n) => (
             <Row key={n.id} cols={gridColsLog}>
               <div style={{ fontSize: 12.5 }}>{n.destinatario}</div>

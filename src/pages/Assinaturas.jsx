@@ -33,7 +33,7 @@ export default function Assinaturas() {
             <Th>Hash (SHA-256)</Th>
             <Th>Provedor</Th>
           </Table>
-          <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderTop: "none", borderRadius: "0 0 9px 9px", overflow: "hidden" }}>
+          <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderTop: "none", borderRadius: "0 0 9px 9px", overflowX: "auto" }}>
             {assinaturas.map((a) => (
               <Row key={a.id} cols={gridCols}>
                 <div style={{ fontSize: 12, color: "#8A929E" }}>{new Date(a.assinadoEm).toLocaleString("pt-BR")}</div>

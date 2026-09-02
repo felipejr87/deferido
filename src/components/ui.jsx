@@ -3,7 +3,11 @@ import { useApp } from "../context/AppContext.jsx";
 import { Tracked } from "./Tracked.jsx";
 
 export function Page({ children, style }) {
-  return <div style={{ padding: "24px 28px 40px 28px", ...style }}>{children}</div>;
+  return (
+    <div className="ol-page" style={style}>
+      {children}
+    </div>
+  );
 }
 
 export function Card({ children, style }) {
