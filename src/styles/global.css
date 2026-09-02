@@ -1,0 +1,85 @@
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+body {
+  background: #f5f6f8;
+  -webkit-font-smoothing: antialiased;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #14181f;
+  font-size: 14px;
+  line-height: 1.45;
+}
+a {
+  color: #0a4d9e;
+  text-decoration: none;
+}
+a:hover {
+  color: #083c7c;
+}
+input,
+button,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+::placeholder {
+  color: #9aa1ac;
+}
+
+.ol-nav-item:hover {
+  background: #1a2333;
+  color: #fff;
+}
+.ol-modo:hover {
+  filter: brightness(0.97);
+}
+.ol-btn-primary:hover {
+  filter: brightness(0.92);
+}
+.ol-btn-secondary:hover {
+  border-color: #0a4d9e;
+}
+.ol-catalogo-card:hover {
+  border-color: #0a4d9e;
+  background: #f7fafd;
+}
+.ol-stepper:hover {
+  border-color: #0a4d9e;
+  color: #0a4d9e;
+}
+.ol-remover:hover {
+  color: #b4453c;
+}
+.ol-row:hover {
+  background: #fafbfc;
+}
+.ol-input:focus,
+.ol-select:focus {
+  border-color: #0a4d9e;
+}
+
+@keyframes ol-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media print {
+  aside,
+  .ol-no-print {
+    display: none !important;
+  }
+}
