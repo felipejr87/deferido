@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PROPOSTAS, STATUS, brl } from "../data/mock.js";
+import { STATUS, brl } from "../data/mock.js";
+import { buscarPropostasReais } from "../lib/data.js";
 import { Tracked } from "../components/Tracked.jsx";
-import { usePagination, Pagination, SecondaryButton } from "../components/ui.jsx";
+import { usePagination, Pagination, SecondaryButton, Badge } from "../components/ui.jsx";
 import ImportarConversa from "../components/ImportarConversa.jsx";
 import { useFeature } from "../context/FeatureContext.jsx";
 
@@ -17,12 +18,26 @@ const gridCols = "70px minmax(180px,1.5fr) minmax(140px,1fr) 118px 122px 84px 11
 
 export default function Propostas() {
   const navigate = useNavigate();
-  const { page, totalPages, setPage, pageItems } = usePagination(PROPOSTAS, 4);
+  const [propostas, setPropostas] = useState([]);
+  const [real, setReal] = useState(false);
+  const { page, totalPages, setPage, pageItems } = usePagination(propostas, 4);
   const conversaOn = useFeature("captura_conversa");
   const [importando, setImportando] = useState(false);
 
+  useEffect(() => {
+    buscarPropostasReais().then((res) => {
+      setPropostas(res.dados);
+      setReal(res.ok);
+    });
+  }, []);
+
   return (
     <div style={{ padding: "24px 28px 40px 28px" }}>
+      <div style={{ marginBottom: 14 }}>
+        <Badge bg={real ? "#EAF6EE" : "#F1F3F6"} fg={real ? "#1F6F4C" : "#5C6675"}>
+          {real ? "dados do Postgres" : "dados de exemplo (offline)"}
+        </Badge>
+      </div>
       {conversaOn && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: importando ? 0 : 14 }}>
           {!importando && (

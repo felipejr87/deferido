@@ -1,18 +1,34 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PROCESSOS, PSTATUS } from "../data/mock.js";
+import { PSTATUS } from "../data/mock.js";
+import { buscarProcessosReais } from "../lib/data.js";
 import { useApp } from "../context/AppContext.jsx";
 import { Tracked } from "../components/Tracked.jsx";
-import { usePagination, Pagination } from "../components/ui.jsx";
+import { usePagination, Pagination, Badge } from "../components/ui.jsx";
 
 const gridCols = "70px minmax(200px,1.7fr) minmax(140px,1fr) 150px 96px 100px";
 
 export default function Processos() {
   const navigate = useNavigate();
   const { escritorio } = useApp();
-  const { page, totalPages, setPage, pageItems } = usePagination(PROCESSOS, 4);
+  const [processos, setProcessos] = useState([]);
+  const [real, setReal] = useState(false);
+  const { page, totalPages, setPage, pageItems } = usePagination(processos, 4);
+
+  useEffect(() => {
+    buscarProcessosReais().then((res) => {
+      setProcessos(res.dados);
+      setReal(res.ok);
+    });
+  }, []);
 
   return (
     <div style={{ padding: "24px 28px 40px 28px" }}>
+      <div style={{ marginBottom: 14 }}>
+        <Badge bg={real ? "#EAF6EE" : "#F1F3F6"} fg={real ? "#1F6F4C" : "#5C6675"}>
+          {real ? "dados do Postgres" : "dados de exemplo (offline)"}
+        </Badge>
+      </div>
       <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderRadius: 9, overflowX: "auto" }}>
         <div
           style={{

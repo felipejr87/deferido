@@ -7,6 +7,8 @@ import { Tracked, TrackedInput } from "../components/Tracked.jsx";
 import { track } from "../lib/analytics.js";
 import { buscarCnpj } from "../lib/integracoes.js";
 import { sugerirCnae } from "../data/cnae.js";
+import { salvarPropostaReal } from "../lib/data.js";
+import { supabaseConectado } from "../lib/supabaseClient.js";
 import { SecondaryButton, Badge } from "../components/ui.jsx";
 
 const OPCOES_PARCELAS = [
@@ -34,11 +36,15 @@ export default function NovaProposta() {
     cliente,
     setCliente,
     subtotal,
+    descontoNum,
     total,
     custos,
     margem,
     parcelasNum,
   } = useApp();
+
+  const [salvando, setSalvando] = useState(false);
+  const [salvo, setSalvo] = useState(null);
 
   const mostrarMargem = useFeature("fase1_mostrar_margem");
   const whatsappOn = useFeature("fase1_whatsapp_share");
@@ -92,6 +98,19 @@ export default function NovaProposta() {
   const baixarPdf = () => {
     track("proposta_baixar_pdf", { numero: NOVO_NUMERO });
     window.print();
+  };
+
+  const salvarRascunho = async () => {
+    track("proposta_salvar_rascunho", { numero: NOVO_NUMERO });
+    if (!supabaseConectado || linhas.length === 0) {
+      setSalvo({ ok: false, motivo: !supabaseConectado ? "Supabase não conectado nesta sessão." : "Adicione ao menos um serviço antes de salvar." });
+      return;
+    }
+    setSalvando(true);
+    setSalvo(null);
+    const res = await salvarPropostaReal({ cliente, linhas, subtotal, descontoNum, total, parcelasNum });
+    setSalvando(false);
+    setSalvo(res);
   };
 
   return (
@@ -396,10 +415,10 @@ export default function NovaProposta() {
               as="div"
               tag="salvar_rascunho"
               className="ol-btn-secondary"
-              onClick={() => track("proposta_salvar_rascunho", { numero: NOVO_NUMERO })}
+              onClick={salvarRascunho}
               style={{ padding: 10, border: "1px solid #DDE1E7", borderRadius: 7, textAlign: "center", fontSize: 12.5, cursor: "pointer", color: "#3C4453" }}
             >
-              Salvar rascunho
+              {salvando ? "Salvando…" : "Salvar rascunho"}
             </Tracked>
             {pdfOn && (
               <Tracked
@@ -413,6 +432,11 @@ export default function NovaProposta() {
               </Tracked>
             )}
           </div>
+          {salvo && (
+            <div style={{ fontSize: 12, color: salvo.ok ? "#1F6F4C" : "#A33F36", background: salvo.ok ? "#EAF6EE" : "#FBEDEC", borderRadius: 8, padding: "8px 10px" }}>
+              {salvo.ok ? `Rascunho salvo como proposta ${salvo.numero} no Postgres.` : salvo.motivo}
+            </div>
+          )}
         </div>
       </div>
     </div>

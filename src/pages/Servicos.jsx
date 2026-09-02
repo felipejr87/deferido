@@ -1,10 +1,28 @@
-import { SERVICOS, CATS, brl } from "../data/mock.js";
+import { useEffect, useState } from "react";
+import { CATS, brl } from "../data/mock.js";
+import { buscarServicosReais } from "../lib/data.js";
+import { Badge } from "../components/ui.jsx";
 
 const gridCols = "minmax(220px,1.7fr) 112px 96px 112px 122px 104px";
 
 export default function Servicos() {
+  const [servicos, setServicos] = useState([]);
+  const [real, setReal] = useState(false);
+
+  useEffect(() => {
+    buscarServicosReais().then((res) => {
+      setServicos(res.dados);
+      setReal(res.ok);
+    });
+  }, []);
+
   return (
     <div style={{ padding: "24px 28px 40px 28px" }}>
+      <div style={{ marginBottom: 14 }}>
+        <Badge bg={real ? "#EAF6EE" : "#F1F3F6"} fg={real ? "#1F6F4C" : "#5C6675"}>
+          {real ? "dados do Postgres" : "dados de exemplo (offline)"}
+        </Badge>
+      </div>
       <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderRadius: 9, overflowX: "auto" }}>
         <div
           style={{
@@ -28,7 +46,7 @@ export default function Servicos() {
           <div style={{ textAlign: "right" }}>Margem</div>
         </div>
 
-        {SERVICOS.map((s) => {
+        {servicos.map((s) => {
           const margemValor = s.valor - s.custo;
           const margemCor = margemValor / s.valor < 0.5 ? "#A33F36" : "#1F6F4C";
           return (
