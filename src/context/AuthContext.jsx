@@ -1,11 +1,13 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { USUARIOS } from "../data/usuarios.js";
 import { track } from "../lib/analytics.js";
+import { supabase, supabaseConectado } from "../lib/supabaseClient.js";
+import { ESCRITORIO_ID } from "../config/escritorio.js";
 
-// Sessão mock (Bloco A1). Sem backend, então: sem bcrypt de verdade, sem JWT
-// assinado — o "token" é só um objeto salvo em localStorage. Qualquer senha
-// com 4+ caracteres autentica um dos e-mails cadastrados em USUARIOS. Ver
-// README para o que precisa entrar quando houver Supabase Auth de verdade.
+// Sessão real via Supabase Auth quando .env.local está configurado
+// (VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY); cai pro mock (Bloco A1
+// original — qualquer senha 4+ chars) quando não está. Nunca quebra por
+// falta de credencial, só degrada.
 
 const SESSION_KEY = "ol:session";
 const ATTEMPTS_KEY = "ol:login_attempts";
@@ -42,10 +44,81 @@ function writeAttempts(email, data) {
   }
 }
 
-export function AuthProvider({ children }) {
-  const [session, setSession] = useState(() => readSession());
+function nomeDoEmail(email) {
+  const local = email.split("@")[0].replace(/[._-]+/g, " ");
+  return local.replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
-  const login = useCallback((email, senha) => {
+// Garante (via RPC security definer) que existe uma linha em `usuarios`
+// ligada a esta conta do Supabase Auth — dono se for a primeira do
+// escritório, operador nas seguintes — e devolve os dados de sessão no
+// mesmo formato que o resto do app já espera (papel, escritorioId etc).
+async function provisionarESessao(authUser) {
+  const { data: usuario, error } = await supabase.rpc("provisionar_usuario", {
+    p_escritorio_id: ESCRITORIO_ID,
+    p_nome: nomeDoEmail(authUser.email),
+  });
+  if (error) throw error;
+  return {
+    usuarioId: usuario.id,
+    nome: usuario.nome,
+    email: usuario.email,
+    papel: usuario.papel,
+    escritorioId: usuario.escritorio_id,
+    expiraEm: Date.now() + 8 * 60 * 60 * 1000,
+  };
+}
+
+export function AuthProvider({ children }) {
+  const [session, setSession] = useState(() => (supabaseConectado ? null : readSession()));
+  const [carregando, setCarregando] = useState(supabaseConectado);
+
+  useEffect(() => {
+    if (!supabaseConectado) return;
+
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (data.session?.user) {
+        try {
+          setSession(await provisionarESessao(data.session.user));
+        } catch (err) {
+          track("sessao_restaurar_erro", { erro: String(err) });
+        }
+      }
+      setCarregando(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, authSession) => {
+      if (!authSession?.user) {
+        setSession(null);
+        return;
+      }
+      try {
+        setSession(await provisionarESessao(authSession.user));
+      } catch (err) {
+        track("sessao_provisionar_erro", { erro: String(err) });
+      }
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const loginSupabase = useCallback(async (email, senha) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
+    if (error) {
+      track("login_falhou", { email, motivo: error.message });
+      return { ok: false, error: error.message === "Invalid login credentials" ? "E-mail ou senha inválidos." : error.message };
+    }
+    try {
+      const s = await provisionarESessao(data.user);
+      setSession(s);
+      track("login_sucesso", { usuario_id: s.usuarioId, papel: s.papel });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: "Login funcionou, mas falhou ao carregar o perfil: " + String(err.message || err) };
+    }
+  }, []);
+
+  const loginMock = useCallback((email, senha) => {
     const attempts = readAttempts(email);
     if (attempts.lockedUntil && Date.now() < attempts.lockedUntil) {
       const min = Math.ceil((attempts.lockedUntil - Date.now()) / 60000);
@@ -72,7 +145,7 @@ export function AuthProvider({ children }) {
       nome: usuario.nome,
       email: usuario.email,
       papel: usuario.papel,
-      escritorioId: "open-legaliza",
+      escritorioId: ESCRITORIO_ID,
       expiraEm: Date.now() + 8 * 60 * 60 * 1000,
     };
     localStorage.setItem(SESSION_KEY, JSON.stringify(s));
@@ -81,20 +154,33 @@ export function AuthProvider({ children }) {
     return { ok: true };
   }, []);
 
-  const logout = useCallback(() => {
+  const login = supabaseConectado ? loginSupabase : loginMock;
+
+  const logout = useCallback(async () => {
     track("logout", { usuario_id: session?.usuarioId });
-    localStorage.removeItem(SESSION_KEY);
+    if (supabaseConectado) {
+      await supabase.auth.signOut();
+    } else {
+      localStorage.removeItem(SESSION_KEY);
+    }
     setSession(null);
   }, [session]);
 
-  const solicitarRecuperacao = useCallback((email) => {
+  const solicitarRecuperacao = useCallback(async (email) => {
+    if (supabaseConectado) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      track("recuperacao_senha_solicitada", { email, ok: !error });
+      // Resposta sempre genérica — não revela se o e-mail existe (evita enumeração de contas).
+      return { ok: true, mensagem: "Se este e-mail existir, enviamos um link de recuperação por e-mail." };
+    }
     const usuario = USUARIOS.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
     track("recuperacao_senha_solicitada", { email, encontrado: Boolean(usuario) });
-    // Resposta sempre genérica — não revela se o e-mail existe (evita enumeração de contas).
     return { ok: true, mensagem: "Se este e-mail existir, enviamos um link de recuperação (válido por 1 hora)." };
   }, []);
 
-  const value = { session, isAuthenticated: Boolean(session), login, logout, solicitarRecuperacao };
+  const value = { session, isAuthenticated: Boolean(session), carregando, login, logout, solicitarRecuperacao, autenticacaoReal: supabaseConectado };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

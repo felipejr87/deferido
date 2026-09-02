@@ -6,16 +6,20 @@ import { Tracked, TrackedInput } from "../components/Tracked.jsx";
 import { inputStyle } from "../components/ui.jsx";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, autenticacaoReal } = useAuth();
   const { escritorio } = useApp();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("felipe@openlegaliza.com.br");
+  const [email, setEmail] = useState(autenticacaoReal ? "" : "felipe@openlegaliza.com.br");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
+  const [entrando, setEntrando] = useState(false);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    const res = login(email, senha);
+    setErro("");
+    setEntrando(true);
+    const res = await login(email, senha);
+    setEntrando(false);
     if (res.ok) navigate("/");
     else setErro(res.error);
   };
@@ -46,22 +50,28 @@ export default function Login() {
         </label>
         <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <span style={{ fontSize: 11.5, color: "#6B7480", textTransform: "uppercase" }}>Senha</span>
-          <TrackedInput tag="login_senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} style={inputStyle} required placeholder="mínimo 4 caracteres (demo)" />
+          <TrackedInput
+            tag="login_senha"
+            type="password"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            style={inputStyle}
+            required
+            placeholder={autenticacaoReal ? "" : "mínimo 4 caracteres (demo)"}
+          />
         </label>
 
-        <Tracked as="button" tag="login_submit" type="submit" className="ol-btn-primary" style={{ padding: 12, borderRadius: 8, background: escritorio.corPrimaria, color: "#fff", fontSize: 14, fontWeight: 600 }}>
-          Entrar
+        <Tracked as="button" tag="login_submit" type="submit" className="ol-btn-primary" style={{ padding: 12, borderRadius: 8, background: escritorio.corPrimaria, color: "#fff", fontSize: 14, fontWeight: 600, opacity: entrando ? 0.7 : 1 }}>
+          {entrando ? "Entrando…" : "Entrar"}
         </Tracked>
 
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
           <Link to="/recuperar-senha" data-track="login_ir_recuperar">
             Esqueci minha senha
           </Link>
-          <span style={{ color: "#98A0AC" }}>{USUARIOS_HINT}</span>
+          {!autenticacaoReal && <span style={{ color: "#98A0AC" }}>demo: qualquer senha 4+ chars</span>}
         </div>
       </form>
     </div>
   );
 }
-
-const USUARIOS_HINT = "demo: qualquer senha 4+ chars";

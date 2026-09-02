@@ -11,9 +11,9 @@ export default function RecuperarSenha() {
   const [email, setEmail] = useState("");
   const [mensagem, setMensagem] = useState("");
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    const res = solicitarRecuperacao(email);
+    const res = await solicitarRecuperacao(email);
     setMensagem(res.mensagem);
   };
 

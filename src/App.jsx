@@ -33,7 +33,10 @@ import { useFeature } from "./context/FeatureContext.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 
 function RequireAuth({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, carregando } = useAuth();
+  if (carregando) {
+    return <div style={{ minHeight: "100vh", background: "#0E1420" }} />;
+  }
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
