@@ -16,7 +16,8 @@ serve(async (req) => {
   try {
     const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${limpo}`);
     if (!res.ok) {
-      return Response.json({ ok: false, erro: "CNPJ não encontrado" }, { status: 404 });
+      const corpo = await res.text().catch(() => "");
+      return Response.json({ ok: false, erro: `BrasilAPI status ${res.status}: ${corpo.slice(0, 200)}` }, { status: res.status === 404 ? 404 : 502 });
     }
     const d = await res.json();
 

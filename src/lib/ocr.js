@@ -1,8 +1,9 @@
-// Nível 2 — OCR de documentos. Tenta de verdade a Edge Function
-// (supabase/functions/extrair-documento), mas ela não está implantada nesta
-// demo (sem ANTHROPIC_API_KEY configurada) — então a chamada falha e o
-// chamador cai no formulário manual. Isso é intencional: melhor um erro
-// honesto do que fingir uma extração que não aconteceu.
+// Nível 2 — OCR de documentos. Chama a Edge Function extrair-documento de
+// verdade via supabase-js; sem Supabase configurado (ou se a chamada
+// falhar), quem chama isso cai no formulário manual — nunca finge um
+// resultado de IA que não aconteceu.
+import { extrairDocumentoIA } from "./edgeFunctions.js";
+import { supabaseConectado } from "./supabaseClient.js";
 
 export const CAMPOS_POR_TIPO = {
   rg: ["nome", "numero_rg", "orgao_emissor", "uf", "data_emissao"],
@@ -21,19 +22,14 @@ export const TIPOS_DOCUMENTO = [
 ];
 
 export async function extrairDocumento({ arquivoBase64, mimeType, tipoDocumento }) {
-  try {
-    const resp = await fetch("/functions/v1/extrair-documento", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ arquivo_base64: arquivoBase64, mime_type: mimeType, tipo_documento: tipoDocumento }),
-    });
-    if (!resp.ok) {
-      return { ok: false, erro: "Backend de OCR não conectado nesta demo (ver supabase/functions/extrair-documento — falta ANTHROPIC_API_KEY)." };
-    }
-    return await resp.json();
-  } catch {
-    return { ok: false, erro: "Backend de OCR não conectado nesta demo (ver supabase/functions/extrair-documento — falta ANTHROPIC_API_KEY)." };
+  if (!supabaseConectado) {
+    return { ok: false, erro: "Supabase não conectado nesta sessão (.env.local ausente)." };
   }
+  const res = await extrairDocumentoIA({ arquivoBase64, mimeType, tipoDocumento });
+  if (!res.ok) {
+    return { ok: false, erro: `Extração automática falhou: ${res.erro}` };
+  }
+  return res;
 }
 
 export function arquivoParaBase64(file) {

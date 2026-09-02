@@ -5,14 +5,33 @@ import { useApp } from "../context/AppContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useFeature } from "../context/FeatureContext.jsx";
 import { parseComando } from "../lib/comandos.js";
+import { interpretarComandoIA } from "../lib/edgeFunctions.js";
+import { supabaseConectado } from "../lib/supabaseClient.js";
 import { vozDisponivel, criarReconhecimento, normalizarNumeros } from "../lib/voz.js";
 import { track } from "../lib/analytics.js";
-import { brl } from "../data/mock.js";
+import { brl, SERVICOS, PROPOSTAS, PROCESSOS } from "../data/mock.js";
 
 // Nível 4 (linguagem natural) + Nível 5 (voz), ver src/lib/comandos.js e
 // src/lib/voz.js: parser local por regras, sem chamada de IA — honesto sobre
 // isso na própria UI (rótulo "sem IA conectada"). Toda ação passa pelo card
 // de confirmação antes de tocar em qualquer estado real.
+
+function buscarLocal({ tipo, termo }) {
+  const q = (termo || "").toLowerCase();
+  if (tipo === "proposta") {
+    const achados = PROPOSTAS.filter((p) => p.cliente.toLowerCase().includes(q) || p.numero.includes(q));
+    return achados.length ? achados.map((p) => `${p.numero} ${p.cliente} — ${p.status}`).join(" · ") : `Nenhuma proposta encontrada para "${termo}".`;
+  }
+  if (tipo === "processo") {
+    const achados = PROCESSOS.filter((p) => p.cliente.toLowerCase().includes(q) || p.numero.includes(q));
+    return achados.length ? achados.map((p) => `${p.numero} ${p.cliente} — ${p.status}`).join(" · ") : `Nenhum processo encontrado para "${termo}".`;
+  }
+  if (tipo === "cliente") {
+    const nomes = [...new Set([...PROPOSTAS, ...PROCESSOS].map((r) => r.cliente))].filter((n) => n.toLowerCase().includes(q));
+    return nomes.length ? nomes.join(", ") : `Nenhum cliente encontrado para "${termo}".`;
+  }
+  return `Busca de ${tipo} não coberta nesta demo.`;
+}
 
 export default function CommandBar() {
   const on = useFeature("captura_comando_natural");
@@ -27,6 +46,7 @@ export default function CommandBar() {
   const [naoReconhecido, setNaoReconhecido] = useState(false);
   const [ouvindo, setOuvindo] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [processando, setProcessando] = useState(false);
   const inputRef = useRef(null);
   const recRef = useRef(null);
 
@@ -52,10 +72,42 @@ export default function CommandBar() {
 
   if (!on || !isAuthenticated) return null;
 
-  const processar = () => {
+  const processar = async () => {
     setFeedback("");
+    setProcessando(true);
+
+    if (supabaseConectado) {
+      const contexto = {
+        catalogoServicos: SERVICOS.map((s) => ({ id: s.id, nome: s.nome, valor: s.valor })),
+        clientesRecentes: [{ nome: app.cliente.nome, telefone: app.cliente.tel }],
+        processosAbertos: [{ numero: 87, cliente: "Ricardo Menezes", status: app.processoDemo.status }],
+      };
+      const res = await interpretarComandoIA(texto, contexto);
+      setProcessando(false);
+      if (res.ok && res.acao?.tipo === "buscar") {
+        // Só leitura — mostra direto, sem card de confirmação.
+        setFeedback(buscarLocal(res.acao.dados));
+        setAcao(null);
+        return;
+      }
+      if (res.ok && res.acao) {
+        track("comando_natural_processar", { texto, reconhecido: true, origem: "ia" });
+        setNaoReconhecido(false);
+        setAcao(res.acao);
+        return;
+      }
+      if (res.ok && res.resposta) {
+        track("comando_natural_processar", { texto, reconhecido: false, origem: "ia_resposta" });
+        setFeedback(res.resposta);
+        setAcao(null);
+        return;
+      }
+      // IA indisponível/erro — cai pro parser local sem incomodar o operador.
+    }
+
+    setProcessando(false);
     const resultado = parseComando(texto);
-    track("comando_natural_processar", { texto, reconhecido: Boolean(resultado) });
+    track("comando_natural_processar", { texto, reconhecido: Boolean(resultado), origem: "local" });
     if (!resultado) {
       setNaoReconhecido(true);
       setAcao(null);
@@ -84,10 +136,14 @@ export default function CommandBar() {
 
     if (acao.tipo === "criar_proposta") {
       if (acao.dados.clienteNome) app.setCliente((c) => ({ ...c, nome: acao.dados.clienteNome }));
-      app.addItem(acao.dados.servicoId);
+      if (acao.dados.servicoId) app.addItem(acao.dados.servicoId);
       if (acao.dados.parcelas > 1) app.setParcelas(String(acao.dados.parcelas));
       navigate("/propostas/nova");
-      setFeedback(`Proposta iniciada com ${acao.dados.servicoNome}.`);
+      setFeedback(
+        acao.dados.servicoId
+          ? `Proposta iniciada com ${acao.dados.servicoNome}.`
+          : `Proposta iniciada${acao.dados.clienteNome ? " para " + acao.dados.clienteNome : ""} — não achei "${acao.dados.servicoNome}" no catálogo, adicione manualmente.`,
+      );
     }
 
     if (acao.tipo === "atualizar_processo") {
@@ -97,7 +153,8 @@ export default function CommandBar() {
     }
 
     if (acao.tipo === "registrar_documento") {
-      const doc = app.DOCS.find((d) => d.nome.toLowerCase().includes(acao.dados.documentoNome.toLowerCase()));
+      const alvo = (acao.dados.documentoNome || "").toLowerCase();
+      const doc = alvo ? app.DOCS.find((d) => d.nome.toLowerCase().includes(alvo)) : null;
       if (doc && !app.docsOk.includes(doc.id)) app.toggleDoc(doc.id);
       navigate(`/processos/0087`);
       setFeedback(doc ? `"${doc.nome}" marcado como recebido.` : "Documento não encontrado no checklist do processo #0087.");
@@ -188,10 +245,15 @@ export default function CommandBar() {
             </div>
 
             <div style={{ padding: 16 }}>
-              {!acao && !naoReconhecido && !feedback && (
+              {processando && (
+                <div style={{ fontSize: 12.5, color: "#8A929E" }}>Pensando…</div>
+              )}
+              {!processando && !acao && !naoReconhecido && !feedback && (
                 <div style={{ fontSize: 12, color: "#98A0AC", lineHeight: 1.6 }}>
-                  Reconhece 4 formatos: criar proposta, atualizar processo, registrar documento recebido, criar lead.
-                  Sem IA conectada — é um parser local por regras (ver Integrações). Enter para processar.
+                  {supabaseConectado
+                    ? "Assistente com IA (Claude) — entende linguagem livre, com fallback local se a chamada falhar."
+                    : "Sem IA conectada — parser local por regras, só 4 formatos fixos (ver Integrações)."}{" "}
+                  Enter para processar.
                 </div>
               )}
 
