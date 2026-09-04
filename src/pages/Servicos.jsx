@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { CATS, brl } from "../data/mock.js";
 import { buscarServicosReais } from "../lib/data.js";
-import { Badge } from "../components/ui.jsx";
+import { Badge, EstadoVazio } from "../components/ui.jsx";
 
 const gridCols = "minmax(220px,1.7fr) 112px 96px 112px 122px 104px";
 
@@ -46,6 +46,9 @@ export default function Servicos() {
           <div style={{ textAlign: "right" }}>Margem</div>
         </div>
 
+        {servicos.length === 0 && (
+          <EstadoVazio titulo="Seu catálogo está vazio" explicacao="Cadastre os serviços que vende. Assim as propostas ficam rápidas." />
+        )}
         {servicos.map((s) => {
           const margemValor = s.valor - s.custo;
           const margemCor = margemValor / s.valor < 0.5 ? "#A33F36" : "#1F6F4C";

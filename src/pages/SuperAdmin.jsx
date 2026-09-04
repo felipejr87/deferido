@@ -3,6 +3,7 @@ import { ESCRITORIOS_SAAS, PLANOS } from "../data/saas.js";
 import { useApp } from "../context/AppContext.jsx";
 import { Page, Table, Th, Row, Badge } from "../components/ui.jsx";
 import { Tracked } from "../components/Tracked.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 import { track } from "../lib/analytics.js";
 
 const STATUS_UI = {
@@ -17,13 +18,23 @@ const gridCols = "minmax(180px,1.5fr) 110px 90px 120px 110px 130px 100px";
 export default function SuperAdmin() {
   const [escritorios, setEscritorios] = useState(ESCRITORIOS_SAAS);
   const { setEscritorio } = useApp();
+  const { avisar, comDesfazer } = useToast();
+
+  const definirStatus = (id, status) => {
+    setEscritorios((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));
+    track("saas_toggle_suspenso", { escritorio_id: id, status });
+  };
 
   const toggleSuspenso = (id) => {
     const alvo = escritorios.find((e) => e.id === id);
+    const statusAnterior = alvo.status;
     const suspendendo = alvo.status !== "suspenso";
-    if (suspendendo && !window.confirm(`Suspender "${alvo.nome}"? Todos os usuários desse escritório perdem acesso imediatamente.`)) return;
-    setEscritorios((prev) => prev.map((e) => (e.id === id ? { ...e, status: e.status === "suspenso" ? "ativo" : "suspenso" } : e)));
-    track("saas_toggle_suspenso", { escritorio_id: id });
+    definirStatus(id, suspendendo ? "suspenso" : "ativo");
+    if (suspendendo) {
+      comDesfazer(`"${alvo.nome}" suspenso — os usuários perdem acesso imediatamente.`, () => definirStatus(id, statusAnterior));
+    } else {
+      avisar(`"${alvo.nome}" reativado.`);
+    }
   };
 
   const impersonar = (e) => {

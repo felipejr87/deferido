@@ -105,29 +105,47 @@ export async function buscarProcessosReais() {
 // Grava a proposta em construção (AppContext) de verdade. Retorna o número
 // gerado ou null se não conseguir (mantém o botão funcional mesmo sem
 // Supabase — só não persiste nada, como já era antes).
-export async function salvarPropostaReal({ cliente, linhas, subtotal, descontoNum, total, parcelasNum }) {
+//
+// Aceita um `propostaId` opcional — quando presente, faz UPDATE na proposta
+// existente em vez de INSERT (e ressincroniza os itens: apaga e recria).
+// Isso é o que permite o auto-save (Parte 0.7) chamar isto a cada 2s sem
+// gerar uma proposta duplicada por tecla: NovaProposta.jsx guarda o id
+// devolvido na primeira gravação e passa nas seguintes.
+export async function salvarPropostaReal({ propostaId, cliente, linhas, subtotal, descontoNum, total, parcelasNum }) {
   if (!supabaseConectado) return { ok: false, motivo: "Supabase não conectado nesta sessão." };
-  const { data: proposta, error } = await supabase
-    .from("propostas")
-    .insert({
-      escritorio_id: ESCRITORIO_ID,
-      cliente_nome: cliente.nome,
-      cliente_doc: cliente.doc,
-      cliente_email: cliente.email,
-      cliente_telefone: cliente.tel,
-      subtotal,
-      desconto: descontoNum,
-      total,
-      parcelas: parcelasNum,
-      forma_pagamento: parcelasNum > 1 ? "parcelado" : "avista",
-      status: "rascunho",
-    })
-    .select("id, numero")
-    .single();
 
-  if (error) {
-    track("proposta_salvar_real_erro", { erro: error.message });
-    return { ok: false, motivo: error.message };
+  const payload = {
+    cliente_nome: cliente.nome,
+    cliente_doc: cliente.doc,
+    cliente_email: cliente.email,
+    cliente_telefone: cliente.tel,
+    subtotal,
+    desconto: descontoNum,
+    total,
+    parcelas: parcelasNum,
+    forma_pagamento: parcelasNum > 1 ? "parcelado" : "avista",
+  };
+
+  let proposta;
+  if (propostaId) {
+    const { data, error } = await supabase.from("propostas").update(payload).eq("id", propostaId).select("id, numero").single();
+    if (error) {
+      track("proposta_salvar_real_erro", { erro: error.message });
+      return { ok: false, motivo: error.message };
+    }
+    proposta = data;
+    await supabase.from("proposta_itens").delete().eq("proposta_id", proposta.id);
+  } else {
+    const { data, error } = await supabase
+      .from("propostas")
+      .insert({ ...payload, escritorio_id: ESCRITORIO_ID, status: "rascunho" })
+      .select("id, numero")
+      .single();
+    if (error) {
+      track("proposta_salvar_real_erro", { erro: error.message });
+      return { ok: false, motivo: error.message };
+    }
+    proposta = data;
   }
 
   const itens = linhas.map((l, idx) => ({
@@ -139,14 +157,16 @@ export async function salvarPropostaReal({ cliente, linhas, subtotal, descontoNu
     valor_total: l.total,
     ordem: idx,
   }));
-  const { error: erroItens } = await supabase.from("proposta_itens").insert(itens);
-  if (erroItens) {
-    track("proposta_salvar_itens_erro", { erro: erroItens.message });
-    return { ok: false, motivo: erroItens.message };
+  if (itens.length) {
+    const { error: erroItens } = await supabase.from("proposta_itens").insert(itens);
+    if (erroItens) {
+      track("proposta_salvar_itens_erro", { erro: erroItens.message });
+      return { ok: false, motivo: erroItens.message };
+    }
   }
 
-  track("proposta_salvar_real_sucesso", { numero: proposta.numero });
-  return { ok: true, numero: formatarNumero(proposta.numero) };
+  track("proposta_salvar_real_sucesso", { numero: proposta.numero, upsert: Boolean(propostaId) });
+  return { ok: true, numero: formatarNumero(proposta.numero), id: proposta.id };
 }
 
 // Acha um cliente existente do escritório pelo documento (CPF/CNPJ), ou cria

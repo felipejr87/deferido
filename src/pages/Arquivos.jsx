@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { ARQUIVOS_DEMO } from "../data/blocoB.js";
-import { Page, Table, Th, Row, Badge, SecondaryButton, PrimaryButton, EmptyState, Field, inputStyle } from "../components/ui.jsx";
+import { Page, Table, Th, Row, Badge, SecondaryButton, PrimaryButton, EstadoVazio, Field, inputStyle } from "../components/ui.jsx";
 import { TrackedInput } from "../components/Tracked.jsx";
 import { track } from "../lib/analytics.js";
 import { extrairDocumento, arquivoParaBase64, CAMPOS_POR_TIPO, TIPOS_DOCUMENTO } from "../lib/ocr.js";
@@ -161,7 +161,11 @@ export default function Arquivos() {
       )}
 
       {arquivos.length === 0 ? (
-        <EmptyState title="Nenhum arquivo ainda" hint="Envie documentos do cliente ou gerados pelo escritório." />
+        <EstadoVazio
+          titulo="Nenhum arquivo"
+          explicacao="Documentos enviados pelo cliente aparecem aqui."
+          acoes={[{ rotulo: "Enviar arquivo", tag: "arquivo_selecionar_vazio", onClick: () => inputRef.current?.click() }]}
+        />
       ) : (
         <>
           <Table cols={gridCols}>

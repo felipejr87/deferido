@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CATS, brl } from "../data/mock.js";
 import { useApp } from "../context/AppContext.jsx";
@@ -11,6 +11,7 @@ import { salvarPropostaReal } from "../lib/data.js";
 import { supabaseConectado } from "../lib/supabaseClient.js";
 import { SecondaryButton, Badge } from "../components/ui.jsx";
 import { useIsMobile } from "../hooks/useIsMobile.js";
+import { useAutoSave, IndicadorSalvamento } from "../hooks/useAutoSave.jsx";
 
 const OPCOES_PARCELAS = [
   { value: "1", label: "À vista" },
@@ -48,6 +49,7 @@ export default function NovaProposta() {
 
   const [salvando, setSalvando] = useState(false);
   const [salvo, setSalvo] = useState(null);
+  const propostaIdRef = useRef(null);
 
   const mostrarMargem = useFeature("fase1_mostrar_margem");
   const whatsappOn = useFeature("fase1_whatsapp_share");
@@ -105,22 +107,41 @@ export default function NovaProposta() {
 
   const itemMock = linhas.find((l) => l.servico._mock);
 
+  // Compartilhado pelo botão manual e pelo auto-save — os dois gravam na
+  // MESMA proposta depois da primeira vez (propostaIdRef), nunca duas
+  // linhas por causa de rascunho automático + clique manual.
+  const gravar = async () => {
+    if (!supabaseConectado || linhas.length === 0) return { skip: true };
+    if (itemMock) return { ok: false, motivo: `"${itemMock.servico.nome}" não está no catálogo real (dados de exemplo offline) — recarregue a página ou cadastre o serviço em Catálogo antes de salvar.` };
+    const res = await salvarPropostaReal({ propostaId: propostaIdRef.current, cliente, linhas, subtotal, descontoNum, total, parcelasNum });
+    if (res.ok && res.id) propostaIdRef.current = res.id;
+    return res;
+  };
+
   const salvarRascunho = async () => {
     track("proposta_salvar_rascunho", { numero: NOVO_NUMERO });
-    if (!supabaseConectado || linhas.length === 0) {
+    setSalvando(true);
+    setSalvo(null);
+    const res = await gravar();
+    setSalvando(false);
+    if (res.skip) {
       setSalvo({ ok: false, motivo: !supabaseConectado ? "Supabase não conectado nesta sessão." : "Adicione ao menos um serviço antes de salvar." });
       return;
     }
-    if (itemMock) {
-      setSalvo({ ok: false, motivo: `"${itemMock.servico.nome}" não está no catálogo real (dados de exemplo offline) — recarregue a página ou cadastre o serviço em Catálogo antes de salvar.` });
-      return;
-    }
-    setSalvando(true);
-    setSalvo(null);
-    const res = await salvarPropostaReal({ cliente, linhas, subtotal, descontoNum, total, parcelasNum });
-    setSalvando(false);
     setSalvo(res);
   };
+
+  // Parte 0.7: salva sozinho 2s depois da última mudança — o botão manual
+  // continua existindo pra quem quer a confirmação explícita na hora.
+  const autoSaveValor = { cliente, itens: linhas.map((l) => ({ id: l.id, qtd: l.qtd })), desconto, parcelas };
+  const estadoAutoSave = useAutoSave(
+    autoSaveValor,
+    async () => {
+      const res = await gravar();
+      if (!res.skip && !res.ok) throw new Error(res.motivo);
+    },
+    { ativo: supabaseConectado && linhas.length > 0 },
+  );
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0,1fr) 372px", gap: 0, alignItems: "start", minHeight: "100%" }}>
@@ -298,7 +319,7 @@ export default function NovaProposta() {
       >
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
           <div style={{ fontSize: 13, fontWeight: 600 }}>Proposta {NOVO_NUMERO}</div>
-          <div style={{ fontSize: 11.5, color: "#8A929E" }}>Rascunho</div>
+          {estadoAutoSave !== "ocioso" ? <IndicadorSalvamento estado={estadoAutoSave} /> : <div style={{ fontSize: 11.5, color: "#8A929E" }}>Rascunho</div>}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>

@@ -1,6 +1,7 @@
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { OBRIGACOES as SEED, OBRIGACOES_TIPOS } from "../data/blocoB.js";
-import { Page, Card, Table, Th, Row, Badge } from "../components/ui.jsx";
+import { Page, Card, Table, Th, Row, Badge, EstadoVazio } from "../components/ui.jsx";
 import { Tracked } from "../components/Tracked.jsx";
 import { track } from "../lib/analytics.js";
 
@@ -15,6 +16,7 @@ const REGIME_LABEL = { mei: "MEI", simples: "Simples", presumido: "Presumido" };
 const gridCols = "minmax(160px,1.4fr) 90px 90px 130px 110px 100px";
 
 export default function Obrigacoes() {
+  const navigate = useNavigate();
   const [obrigacoes, setObrigacoes] = useState(SEED);
 
   const marcarCumprida = (id) => {
@@ -32,6 +34,14 @@ export default function Obrigacoes() {
         </div>
       </Card>
 
+      {obrigacoes.length === 0 ? (
+        <EstadoVazio
+          titulo="Nenhuma obrigação cadastrada"
+          explicacao="Obrigações fiscais aparecem aqui quando o cliente tem contabilidade."
+          acoes={[{ rotulo: "Ver clientes", tag: "obrigacoes_ver_clientes", onClick: () => navigate("/propostas") }]}
+        />
+      ) : (
+      <>
       <Table cols={gridCols}>
         <Th>Cliente</Th>
         <Th>Regime</Th>
@@ -67,6 +77,8 @@ export default function Obrigacoes() {
           );
         })}
       </div>
+      </>
+      )}
 
       <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
         {OBRIGACOES_TIPOS.map((t) => (

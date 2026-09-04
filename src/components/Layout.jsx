@@ -292,24 +292,27 @@ export default function Layout() {
                 })}
               </div>
             )}
-            <Tracked
-              as="div"
-              tag="nova_proposta_cta"
-              className="ol-btn-primary"
-              onClick={() => navigate("/propostas/nova")}
-              style={{
-                padding: isMobile ? "8px 12px" : "9px 15px",
-                borderRadius: 7,
-                background: escritorio.corPrimaria,
-                color: "#fff",
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Nova proposta
-            </Tracked>
+            {meta.acaoPrincipal && (
+              <Tracked
+                as="div"
+                tag="acao_principal_topbar"
+                data={{ path: meta.acaoPrincipal.path }}
+                className="ol-btn-primary"
+                onClick={() => navigate(meta.acaoPrincipal.path)}
+                style={{
+                  padding: isMobile ? "8px 12px" : "9px 15px",
+                  borderRadius: 7,
+                  background: escritorio.corPrimaria,
+                  color: "#fff",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {meta.acaoPrincipal.rotulo}
+              </Tracked>
+            )}
           </div>
         </div>
 

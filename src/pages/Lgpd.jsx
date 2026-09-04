@@ -4,6 +4,7 @@ import { PROPOSTAS, PROCESSOS } from "../data/mock.js";
 import { USUARIOS } from "../data/usuarios.js";
 import { Page, Card, SectionTitle, PrimaryButton, SecondaryButton, Field, inputStyle } from "../components/ui.jsx";
 import { TrackedInput } from "../components/Tracked.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 import { track } from "../lib/analytics.js";
 import { downloadJson } from "../lib/export.js";
 
@@ -11,6 +12,7 @@ export default function Lgpd() {
   const { escritorio, cliente, catalogo } = useApp();
   const [clienteAlvo, setClienteAlvo] = useState(cliente.nome);
   const [anonimizado, setAnonimizado] = useState(false);
+  const { avisar } = useToast();
 
   const exportarEscritorio = () => {
     const payload = { escritorio, usuarios: USUARIOS, servicos: catalogo.servicos, propostas: PROPOSTAS, processos: PROCESSOS, exportado_em: new Date().toISOString() };
@@ -25,9 +27,17 @@ export default function Lgpd() {
     track("lgpd_export", { escopo: "cliente", cliente: clienteAlvo });
   };
 
+  // Ação irreversível (Parte 0.5, exceção): mantém confirmação, mas exige
+  // digitar o nome do cliente — clicar "sim" no automático não basta aqui.
   const anonimizar = () => {
-    if (!window.confirm(`Anonimizar os dados pessoais de "${clienteAlvo}"? Isso preserva o histórico financeiro mas remove nome, documento, e-mail e telefone. Não pode ser desfeito.`)) return;
+    const digitado = window.prompt(`Isso remove nome, documento, e-mail e telefone de "${clienteAlvo}" pra sempre (o histórico financeiro fica). Não dá pra desfazer.\n\nDigite o nome do cliente pra confirmar:`);
+    if (digitado === null) return;
+    if (digitado.trim().toLowerCase() !== clienteAlvo.trim().toLowerCase()) {
+      avisar("O nome digitado não bateu — nada foi alterado.", "erro");
+      return;
+    }
     setAnonimizado(true);
+    avisar(`Dados pessoais de "${clienteAlvo}" anonimizados.`);
     track("cliente_anonimizar", { cliente: clienteAlvo });
   };
 

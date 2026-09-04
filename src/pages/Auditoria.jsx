@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getAuditLog } from "../lib/analytics.js";
-import { Page, Table, Th, Row, Badge, EmptyState } from "../components/ui.jsx";
+import { Page, Table, Th, Row, Badge, EstadoVazio } from "../components/ui.jsx";
 
 const ACAO_COR = {
   criou: { bg: "#EAF6EE", fg: "#1F6F4C" },
@@ -30,7 +30,7 @@ export default function Auditoria() {
       </div>
 
       {log.length === 0 ? (
-        <EmptyState title="Nenhuma ação registrada ainda" hint="Interaja com o sistema — aceite uma proposta, marque uma etapa — e volte aqui." />
+        <EstadoVazio titulo="Nada registrado ainda" explicacao="Toda alteração no sistema fica registrada aqui." />
       ) : (
         <>
           <Table cols={gridCols}>

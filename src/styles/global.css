@@ -76,6 +76,15 @@ button {
     transform: rotate(360deg);
   }
 }
+@keyframes ol-pulso {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
 
 @media print {
   aside,

@@ -4,7 +4,6 @@ import Login from "./pages/Login.jsx";
 import RecuperarSenha from "./pages/RecuperarSenha.jsx";
 import Onboarding from "./pages/Onboarding.jsx";
 import Inicio from "./pages/Inicio.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
 import Propostas from "./pages/Propostas.jsx";
 import NovaProposta from "./pages/NovaProposta.jsx";
 import Servicos from "./pages/Servicos.jsx";
@@ -62,7 +61,7 @@ export default function App() {
         >
           <Route path="/" element={<Navigate to="/inicio" replace />} />
           <Route path="/inicio" element={<Inicio />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Navigate to="/relatorios" replace />} />
           <Route path="/onboarding" element={<Onboarding />} />
 
           <Route path="/propostas" element={<Propostas />} />

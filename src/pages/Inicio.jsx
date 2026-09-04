@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase, supabaseConectado } from "../lib/supabaseClient.js";
 import { ESCRITORIO_ID } from "../config/escritorio.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import { Page, Card, EmptyState, SecondaryButton, Badge, Spinner } from "../components/ui.jsx";
+import { Page, Card, EstadoVazio, SecondaryButton, Badge, Carregando } from "../components/ui.jsx";
 import { Tracked } from "../components/Tracked.jsx";
 import { track } from "../lib/analytics.js";
 import { PROCESSOS, PROPOSTAS } from "../data/mock.js";
@@ -93,22 +93,19 @@ export default function Inicio() {
         )}
       </div>
 
-      {fila === null && (
-        <Card style={{ display: "flex", alignItems: "center", gap: 10, color: "#8A929E", fontSize: 13 }}>
-          <Spinner /> Carregando…
-        </Card>
-      )}
+      {fila === null && <Carregando linhas={4} />}
 
       {fila !== null && fila.length === 0 && (
-        <EmptyState
-          title="Nada pedindo atenção agora"
-          hint="Prazos, exigências de órgão, documentos parados e propostas sem resposta aparecem aqui assim que surgirem."
-          action={
-            <SecondaryButton tag="inicio_ver_numeros" onClick={() => navigate("/dashboard")}>
-              Ver números do mês
-            </SecondaryButton>
-          }
-        />
+        <Card>
+          <EstadoVazio
+            titulo="Nada pedindo atenção agora"
+            explicacao="Prazos, exigências de órgão, documentos parados e propostas sem resposta aparecem aqui assim que surgirem."
+            acoes={[
+              { rotulo: "Nova proposta", tag: "inicio_nova_proposta", onClick: () => navigate("/propostas/nova") },
+              { rotulo: "Ver processos", tag: "inicio_ver_processos", onClick: () => navigate("/processos") },
+            ]}
+          />
+        </Card>
       )}
 
       {fila !== null && fila.length > 0 && (
@@ -140,7 +137,7 @@ export default function Inicio() {
             })}
           </div>
           <div style={{ textAlign: "center", paddingTop: 8 }}>
-            <SecondaryButton tag="inicio_ver_numeros" onClick={() => navigate("/dashboard")}>
+            <SecondaryButton tag="inicio_ver_numeros" onClick={() => navigate("/relatorios")}>
               Ver números do mês
             </SecondaryButton>
           </div>

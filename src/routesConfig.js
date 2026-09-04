@@ -2,12 +2,16 @@
 // usado pelo seletor de modo no topbar (mesma ideia do "modos" no layout
 // original, onde a mesma tela pode ser vista como operador ou como cliente).
 
+// acaoPrincipal (Parte 0.2 da spec de fluxos: uma ação principal por
+// tela): o botão sólido do topbar só aparece nas telas onde existe uma
+// ação real pra oferecer — ficava fixo em "Nova proposta" em toda tela do
+// sistema antes disso, inclusive em Usuários/Auditoria, onde não faz
+// sentido nenhum e brigava com a própria ação da tela.
 export const ROUTES = {
   "/inicio": { crumb: "Início", titulo: "O que fazer agora" },
-  "/dashboard": { crumb: "Visão geral", titulo: "Dashboard" },
   "/onboarding": { crumb: "Configuração", titulo: "Onboarding do escritório" },
 
-  "/propostas": { crumb: "Comercial", titulo: "Propostas" },
+  "/propostas": { crumb: "Comercial", titulo: "Propostas", acaoPrincipal: { rotulo: "Nova proposta", path: "/propostas/nova" } },
   "/propostas/nova": {
     crumb: "Comercial · Propostas",
     titulo: "Nova proposta",
@@ -31,7 +35,7 @@ export const ROUTES = {
   "/templates-mensagem": { crumb: "Comunicação", titulo: "Templates de mensagem" },
   "/regua-cobranca": { crumb: "Comunicação", titulo: "Régua de cobrança" },
 
-  "/relatorios": { crumb: "Inteligência", titulo: "Relatórios" },
+  "/relatorios": { crumb: "Inteligência", titulo: "Números do mês" },
 
   "/cnae": { crumb: "Integrações", titulo: "Consulta de CNAE" },
   "/integracoes": { crumb: "Integrações", titulo: "Configuração" },

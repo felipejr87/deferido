@@ -1,8 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { PSTATUS, EVENTOS } from "../data/mock.js";
+import { EVENTOS } from "../data/mock.js";
 import { useApp } from "../context/AppContext.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 import { Tracked } from "../components/Tracked.jsx";
+import { StatusBadge, ProximoPasso } from "../components/ui.jsx";
 import { track } from "../lib/analytics.js";
+import { haQuantoTempo } from "../lib/vocabulario.js";
 import { useIsMobile } from "../hooks/useIsMobile.js";
 
 const PROC_BASE = {
@@ -11,21 +14,63 @@ const PROC_BASE = {
   servico: "Abertura ME / LTDA",
   resp: "Camila Duarte",
   prazo: "12 set 2026",
+  iniciadoEm: "2026-08-22",
   parado: "Sem movimentação há 6 dias",
 };
+
+// Processo.jsx ainda é uma demonstração fixa (não lê processo real por
+// :numero — mesma limitação documentada desde a migração de catálogo pra
+// uuid: o backend de processo por trás desta tela ainda não existe). O
+// próximo passo abaixo usa o estado de demo já existente em AppContext
+// (processoDemo/docsOk/DOCS), não dados reais — por isso as ações que
+// dependeriam de robô de consulta (Bloco 4/6, fora de escopo) viram um
+// registro de evento em vez de fingir uma consulta de verdade.
+function calcularProximoPasso(proc, docsPendentes, avisar) {
+  switch (proc.status) {
+    case "aguardando_docs":
+      return docsPendentes.length
+        ? {
+            agora: `Esperando ${docsPendentes.length === 1 ? `o ${docsPendentes[0].nome}` : `${docsPendentes.length} documentos`} do cliente`,
+            desde: `Pedido ${haQuantoTempo(proc.iniciadoEm)}`,
+            acao: { tag: "proximo_passo_cobrar", rotulo: "Cobrar cliente", onClick: () => avisar("Cobrança registrada — sem WhatsApp conectado, avise o cliente por fora por enquanto.") },
+          }
+        : { agora: "Documentos completos — pronto para começar", acao: null };
+    case "em_andamento":
+      return { agora: "Em andamento no escritório", desde: proc.prazo ? `Prazo: ${proc.prazo}` : null, acao: null };
+    case "aguardando_orgao":
+      return {
+        agora: `No ${proc.orgao || "órgão"} · protocolo ${proc.protocolo || "—"}`,
+        desde: "Consulta manual — o robô de andamento ainda não está ligado",
+        acao: { tag: "proximo_passo_consultar", rotulo: "Consultar andamento", onClick: () => avisar("Marcado como verificado agora.") },
+      };
+    case "pendencia":
+      return {
+        agora: "O órgão pediu algo a mais",
+        desde: "Veja a exigência na linha do tempo",
+        acao: { tag: "proximo_passo_resolver", rotulo: "Resolver exigência", onClick: () => avisar("Anote a exigência resolvida na linha do tempo (registrar evento).") },
+      };
+    case "concluido":
+      return { agora: "Concluído e entregue", acao: null };
+    default:
+      return null;
+  }
+}
 
 export default function Processo() {
   const navigate = useNavigate();
   const { escritorio, etapasOk, toggleEtapa, docsOk, toggleDoc, ETAPAS, DOCS, processoDemo } = useApp();
+  const { avisar } = useToast();
   const PROC = { ...PROC_BASE, ...processoDemo };
   const isMobile = useIsMobile();
 
-  const st = PSTATUS[PROC.status];
   const progresso = Math.round((etapasOk.length / ETAPAS.length) * 100) + "%";
+  const docsPendentes = DOCS.filter((d) => d.obrigatorio && !docsOk.includes(d.id));
+  const proximoPasso = calcularProximoPasso(PROC, docsPendentes, avisar);
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0,1fr) 356px", alignItems: "start", minHeight: "100%" }}>
       <div style={{ minWidth: 0, padding: isMobile ? "16px 16px 24px 16px" : "24px 28px 40px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+        {proximoPasso && <ProximoPasso agora={proximoPasso.agora} desde={proximoPasso.desde} acao={proximoPasso.acao} />}
         <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderRadius: 9, padding: 18, display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -33,9 +78,7 @@ export default function Processo() {
               <div style={{ fontSize: 12.5, color: "#8A929E" }}>{PROC.servico} · proposta #0145 aceita</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ display: "inline-block", padding: "5px 11px", borderRadius: 20, fontSize: 12, fontWeight: 500, background: st.bg, color: st.fg }}>
-                {st.label}
-              </span>
+              <StatusBadge entidade="processo" status={PROC.status} />
               <span style={{ fontSize: 12, color: "#A33F36" }}>{PROC.parado}</span>
             </div>
           </div>

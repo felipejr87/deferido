@@ -6,34 +6,9 @@
 // isso aqui é a segunda trava, não a primeira).
 import { supabase, supabaseConectado } from "./supabaseClient.js";
 import { track } from "./analytics.js";
+import { rotuloStatus as rotuloStatusVocab, rotuloCampo } from "./vocabulario.js";
 
 const TABELA = { proposta: "propostas", processo: "processos" };
-
-const ROTULO_STATUS = {
-  rascunho: "Rascunho",
-  enviada: "Enviada",
-  vista: "Vista",
-  aceita: "Aceita",
-  recusada: "Recusada",
-  expirada: "Expirada",
-  arquivada: "Arquivada",
-  aguardando_docs: "Esperando documentos",
-  em_andamento: "Em andamento",
-  aguardando_orgao: "Aguardando o órgão",
-  pendencia: "Com exigência",
-  concluido: "Concluído",
-  cancelado: "Cancelado",
-};
-
-const ROTULO_CAMPO = {
-  observacoes: "uma observação",
-  protocolo: "o número do protocolo",
-  orgao: "o órgão",
-};
-
-export function rotuloStatus(status) {
-  return ROTULO_STATUS[status] || status;
-}
 
 // Erro pensado pra ser mostrado direto na tela (Parte 0.10: o que
 // aconteceu + por que + o que fazer) — nunca um erro de banco cru.
@@ -96,14 +71,14 @@ export async function transicionar(entidade, id, novoStatus, dados = {}) {
 
   if (!transicao) {
     throw new ErroAmigavel(
-      `Não dá para ir de "${rotuloStatus(atual.status)}" para "${rotuloStatus(novoStatus)}".`,
+      `Não dá para ir de "${rotuloStatusVocab(entidade, atual.status).label}" para "${rotuloStatusVocab(entidade, novoStatus).label}".`,
       "Verifique se alguma etapa anterior ficou pendente.",
     );
   }
 
   const faltando = (transicao.requer_campos || []).filter((c) => !dados[c] && !atual[c]);
   if (faltando.length) {
-    throw new ErroAmigavel(`Falta preencher: ${faltando.map((c) => ROTULO_CAMPO[c] || c).join(", ")}.`);
+    throw new ErroAmigavel(`Falta preencher: ${faltando.map(rotuloCampo).join(", ")}.`);
   }
 
   const camposValidos = ["protocolo", "orgao", "observacoes"];

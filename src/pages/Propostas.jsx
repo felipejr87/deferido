@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { STATUS, brl } from "../data/mock.js";
+import { brl } from "../data/mock.js";
 import { buscarPropostasReais, gerarProcessoDaProposta } from "../lib/data.js";
-import { transicionar, ErroAmigavel } from "../lib/fluxo.js";
-import { supabaseConectado } from "../lib/supabaseClient.js";
+import { transicionar } from "../lib/fluxo.js";
+import { traduzirErro, ErroAmigavel } from "../lib/erros.js";
 import { Tracked } from "../components/Tracked.jsx";
-import { usePagination, Pagination, SecondaryButton, Badge, EmptyState, PrimaryButton } from "../components/ui.jsx";
+import { usePagination, Pagination, SecondaryButton, Badge, EstadoVazio, StatusBadge, Erro } from "../components/ui.jsx";
 import ImportarConversa from "../components/ImportarConversa.jsx";
-import Toast, { useToast } from "../components/Toast.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 import { useFeature } from "../context/FeatureContext.jsx";
 
 const KPIS = [
@@ -29,7 +29,7 @@ export default function Propostas() {
   const [gerando, setGerando] = useState(null);
   const [mudando, setMudando] = useState(null);
   const [feedback, setFeedback] = useState(null);
-  const { toast, mostrar, fechar } = useToast();
+  const { avisar, comDesfazer } = useToast();
 
   const recarregar = () =>
     buscarPropostasReais().then((res) => {
@@ -47,10 +47,10 @@ export default function Propostas() {
     const res = await gerarProcessoDaProposta(p.id);
     setGerando(null);
     if (!res.ok) {
-      setFeedback({ ok: false, texto: `Não foi possível criar o processo de ${p.numero}: ${res.motivo}` });
+      setFeedback(new ErroAmigavel(`Não consegui criar o processo de ${p.numero}`, res.motivo));
       return;
     }
-    setFeedback({ ok: true, texto: `${res.dados.length} processo(s) criado(s) a partir de ${p.numero}.` });
+    avisar(`${res.dados.length} processo(s) criado(s) a partir de ${p.numero}.`);
     navigate("/processos");
   };
 
@@ -60,10 +60,10 @@ export default function Propostas() {
     setFeedback(null);
     try {
       await transicionar("proposta", p.id, "enviada");
-      setFeedback({ ok: true, texto: `Proposta ${p.numero} enviada.` });
+      avisar(`Proposta ${p.numero} enviada.`);
       await recarregar();
     } catch (err) {
-      setFeedback({ ok: false, texto: err instanceof ErroAmigavel ? err.message : "Não consegui enviar a proposta." });
+      setFeedback(traduzirErro(err));
     }
     setMudando(null);
   };
@@ -74,18 +74,15 @@ export default function Propostas() {
     try {
       await transicionar("proposta", p.id, "arquivada");
     } catch (err) {
-      setFeedback({ ok: false, texto: err instanceof ErroAmigavel ? err.message : "Não consegui arquivar a proposta." });
+      setFeedback(traduzirErro(err));
       setMudando(null);
       return;
     }
     setMudando(null);
     await recarregar();
-    mostrar({
-      texto: `Proposta ${p.numero} arquivada.`,
-      aoDesfazer: async () => {
-        await transicionar("proposta", p.id, "rascunho");
-        await recarregar();
-      },
+    comDesfazer(`Proposta ${p.numero} arquivada.`, async () => {
+      await transicionar("proposta", p.id, "rascunho");
+      await recarregar();
     });
   };
 
@@ -99,11 +96,7 @@ export default function Propostas() {
         <Badge bg={real ? "#EAF6EE" : "#F1F3F6"} fg={real ? "#1F6F4C" : "#5C6675"}>
           {real ? "dados do Postgres" : "dados de exemplo (offline)"}
         </Badge>
-        {feedback && (
-          <div style={{ fontSize: 12.5, color: feedback.ok ? "#1F6F4C" : "#A33F36", background: feedback.ok ? "#EAF6EE" : "#FBEDEC", borderRadius: 8, padding: "8px 10px" }}>
-            {feedback.texto}
-          </div>
-        )}
+        {feedback && <Erro titulo={feedback.titulo} motivo={feedback.motivo} acoes={feedback.acoes} />}
       </div>
       {conversaOn && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: importando ? 0 : 14 }}>
@@ -165,20 +158,13 @@ export default function Propostas() {
         </div>
 
         {propostas.length === 0 && (
-          <div style={{ padding: "8px 18px 24px 18px" }}>
-            <EmptyState
-              title="Nenhuma proposta ainda"
-              hint="Propostas aparecem aqui assim que você criar a primeira. Leva menos de 5 minutos."
-              action={
-                <PrimaryButton tag="propostas_criar_primeira" onClick={() => navigate("/propostas/nova")}>
-                  Criar primeira proposta
-                </PrimaryButton>
-              }
-            />
-          </div>
+          <EstadoVazio
+            titulo="Nenhuma proposta ainda"
+            explicacao="Proposta é o primeiro passo para virar cliente. Leva 2 minutos."
+            acoes={[{ rotulo: "Nova proposta", tag: "propostas_criar_primeira", onClick: () => navigate("/propostas/nova") }]}
+          />
         )}
         {pageItems.map((p) => {
-          const st = STATUS[p.status];
           const podeGerarProcesso = p.status === "aceita";
           const podeEnviar = p.status === "rascunho";
           const podeArquivar = p.status === "rascunho";
@@ -204,19 +190,7 @@ export default function Propostas() {
               <div style={{ fontSize: 12.5, color: "#4B5563" }}>{p.servicos}</div>
               <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 500 }}>{brl(p.total)}</div>
               <div>
-                <span
-                  style={{
-                    display: "inline-block",
-                    padding: "3px 9px",
-                    borderRadius: 20,
-                    fontSize: 11.5,
-                    fontWeight: 500,
-                    background: st.bg,
-                    color: st.fg,
-                  }}
-                >
-                  {st.label}
-                </span>
+                <StatusBadge entidade="proposta" status={p.status} />
               </div>
               <div style={{ fontSize: 12.5, color: "#8A929E", fontVariantNumeric: "tabular-nums" }}>{p.data}</div>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -241,7 +215,6 @@ export default function Propostas() {
         })}
       </div>
       <Pagination page={page} totalPages={totalPages} onChange={setPage} />
-      <Toast toast={toast} onFechar={fechar} />
     </div>
   );
 }

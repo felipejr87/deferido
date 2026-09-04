@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { USUARIOS as SEED_USUARIOS, PAPEL_PERMISSOES } from "../data/usuarios.js";
-import { Page, Card, Table, Th, Row, Badge, PrimaryButton, Field, inputStyle } from "../components/ui.jsx";
+import { Page, Card, Table, Th, Row, Badge, PrimaryButton, SecondaryButton, Field, inputStyle } from "../components/ui.jsx";
 import { Tracked, TrackedInput } from "../components/Tracked.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 import { track } from "../lib/analytics.js";
 
 const gridCols = "minmax(180px,1.5fr) minmax(200px,1.7fr) 130px 140px 90px";
@@ -10,6 +11,7 @@ export default function Usuarios() {
   const [usuarios, setUsuarios] = useState(SEED_USUARIOS);
   const [convidando, setConvidando] = useState(false);
   const [novo, setNovo] = useState({ nome: "", email: "", papel: "operador" });
+  const { avisar, comDesfazer } = useToast();
 
   const convidar = () => {
     if (!novo.nome || !novo.email) return;
@@ -18,13 +20,23 @@ export default function Usuarios() {
     track("usuario_convidar", { email: novo.email, papel: novo.papel });
     setNovo({ nome: "", email: "", papel: "operador" });
     setConvidando(false);
+    avisar(`Convite enviado para ${usuario.email}.`);
+  };
+
+  const definirAtivo = (id, ativo) => {
+    setUsuarios((prev) => prev.map((u) => (u.id === id ? { ...u, ativo } : u)));
+    track(ativo ? "usuario_reativar" : "usuario_desativar", { usuario_id: id });
   };
 
   const toggleAtivo = (id) => {
     const usuario = usuarios.find((u) => u.id === id);
-    if (usuario.ativo && !window.confirm(`Desativar ${usuario.nome}? O histórico de ações dele é preservado — não é possível fazer login enquanto desativado.`)) return;
-    setUsuarios((prev) => prev.map((u) => (u.id === id ? { ...u, ativo: !u.ativo } : u)));
-    track("usuario_desativar", { usuario_id: id });
+    if (usuario.ativo) {
+      definirAtivo(id, false);
+      comDesfazer(`${usuario.nome} desativado.`, () => definirAtivo(id, true));
+    } else {
+      definirAtivo(id, true);
+      avisar(`${usuario.nome} reativado.`);
+    }
   };
 
   return (
@@ -33,9 +45,15 @@ export default function Usuarios() {
         <div style={{ fontSize: 12.5, color: "#8A929E" }}>
           Convite por e-mail com link de ativação. Desativar preserva o histórico — nunca deleta.
         </div>
-        <PrimaryButton tag="usuario_abrir_convite" onClick={() => setConvidando((v) => !v)}>
-          {convidando ? "Cancelar" : "Convidar usuário"}
-        </PrimaryButton>
+        {convidando ? (
+          <SecondaryButton tag="usuario_abrir_convite" onClick={() => setConvidando((v) => !v)}>
+            Cancelar
+          </SecondaryButton>
+        ) : (
+          <PrimaryButton tag="usuario_abrir_convite" onClick={() => setConvidando((v) => !v)}>
+            Convidar usuário
+          </PrimaryButton>
+        )}
       </div>
 
       {convidando && (

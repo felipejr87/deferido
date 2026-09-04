@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PSTATUS } from "../data/mock.js";
 import { buscarProcessosReais } from "../lib/data.js";
 import { useApp } from "../context/AppContext.jsx";
 import { Tracked } from "../components/Tracked.jsx";
-import { usePagination, Pagination, Badge } from "../components/ui.jsx";
+import { usePagination, Pagination, Badge, StatusBadge, EstadoVazio } from "../components/ui.jsx";
 
 const gridCols = "70px minmax(200px,1.7fr) minmax(140px,1fr) 150px 96px 100px";
 
@@ -52,8 +51,16 @@ export default function Processos() {
           <div>Prazo</div>
         </div>
 
+        {processos.length === 0 && (
+          <EstadoVazio
+            titulo="Nenhum processo em andamento"
+            explicacao="Processos nascem quando uma proposta é aceita. Você também pode criar direto."
+            acoes={[
+              { rotulo: "Ver propostas", tag: "processos_ver_propostas", onClick: () => navigate("/propostas") },
+            ]}
+          />
+        )}
         {pageItems.map((p) => {
-          const st = PSTATUS[p.status];
           const barra = Math.round((p.feitas / p.total) * 100) + "%";
           const alerta = p.parado >= 5 ? `parado há ${p.parado} dias` : "";
           return (
@@ -63,7 +70,7 @@ export default function Processos() {
               tag="processo_abrir"
               data={{ numero: p.numero }}
               className="ol-row"
-              onClick={() => navigate("/processos/0087")}
+              onClick={() => navigate(`/processos/${p.numero.replace("#", "")}`)}
               style={{
                 display: "grid",
                 gridTemplateColumns: gridCols,
@@ -82,9 +89,7 @@ export default function Processos() {
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
-                <span style={{ display: "inline-block", padding: "3px 9px", borderRadius: 20, fontSize: 11.5, fontWeight: 500, background: st.bg, color: st.fg }}>
-                  {st.label}
-                </span>
+                <StatusBadge entidade="processo" status={p.status} />
                 {alerta && <span style={{ fontSize: 11, color: "#A33F36" }}>{alerta}</span>}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
