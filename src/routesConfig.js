@@ -3,6 +3,7 @@
 // original, onde a mesma tela pode ser vista como operador ou como cliente).
 
 export const ROUTES = {
+  "/inicio": { crumb: "Início", titulo: "O que fazer agora" },
   "/dashboard": { crumb: "Visão geral", titulo: "Dashboard" },
   "/onboarding": { crumb: "Configuração", titulo: "Onboarding do escritório" },
 

@@ -29,6 +29,8 @@ export const STATUS = {
   vista: { bg: "#FDF3E3", fg: "#8A5A0B", label: "Vista" },
   aceita: { bg: "#EAF6EE", fg: "#1F6F4C", label: "Aceita" },
   recusada: { bg: "#FBEDEC", fg: "#A33F36", label: "Recusada" },
+  expirada: { bg: "#F1F3F6", fg: "#8A929E", label: "Expirada" },
+  arquivada: { bg: "#F1F3F6", fg: "#8A929E", label: "Arquivada" },
 };
 
 export const CATS = {

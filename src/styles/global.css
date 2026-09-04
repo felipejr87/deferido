@@ -91,4 +91,12 @@ button {
   .ol-page {
     padding: 16px 14px 28px 14px;
   }
+  /* Parte 0.8 da spec de fluxos: fonte < 16px em input dispara zoom
+     automático no iOS ao focar o campo. Estilos inline (fontSize: 13-14px)
+     em quase todo formulário do app precisam do !important pra ceder aqui. */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }

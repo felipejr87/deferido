@@ -3,6 +3,7 @@ import Layout from "./components/Layout.jsx";
 import Login from "./pages/Login.jsx";
 import RecuperarSenha from "./pages/RecuperarSenha.jsx";
 import Onboarding from "./pages/Onboarding.jsx";
+import Inicio from "./pages/Inicio.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Propostas from "./pages/Propostas.jsx";
 import NovaProposta from "./pages/NovaProposta.jsx";
@@ -42,7 +43,7 @@ function RequireAuth({ children }) {
 
 function RequireFeature({ flag, children }) {
   const on = useFeature(flag);
-  return on ? children : <Navigate to="/dashboard" replace />;
+  return on ? children : <Navigate to="/inicio" replace />;
 }
 
 export default function App() {
@@ -59,7 +60,8 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/inicio" replace />} />
+          <Route path="/inicio" element={<Inicio />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/onboarding" element={<Onboarding />} />
 
@@ -94,7 +96,7 @@ export default function App() {
           <Route path="/auditoria" element={<RequireFeature flag="a_auditoria"><Auditoria /></RequireFeature>} />
           <Route path="/lgpd" element={<RequireFeature flag="a_lgpd"><Lgpd /></RequireFeature>} />
 
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/inicio" replace />} />
         </Route>
       </Routes>
       <SettingsPanel />

@@ -29,6 +29,10 @@ export default function Layout() {
 
   const groups = [
     {
+      titulo: "Início",
+      items: [{ key: "inicio", label: "O que fazer agora", path: "/inicio" }],
+    },
+    {
       titulo: "Comercial",
       items: [
         { key: "propostas", label: "Propostas", badge: String(PROPOSTAS.length), path: "/propostas" },
@@ -127,7 +131,7 @@ export default function Layout() {
           <Tracked
             as="div"
             tag="nav_home"
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/inicio")}
             style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", minWidth: 0 }}
           >
             <div

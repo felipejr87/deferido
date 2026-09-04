@@ -2,9 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { STATUS, brl } from "../data/mock.js";
 import { buscarPropostasReais, gerarProcessoDaProposta } from "../lib/data.js";
+import { transicionar, ErroAmigavel } from "../lib/fluxo.js";
+import { supabaseConectado } from "../lib/supabaseClient.js";
 import { Tracked } from "../components/Tracked.jsx";
-import { usePagination, Pagination, SecondaryButton, Badge } from "../components/ui.jsx";
+import { usePagination, Pagination, SecondaryButton, Badge, EmptyState, PrimaryButton } from "../components/ui.jsx";
 import ImportarConversa from "../components/ImportarConversa.jsx";
+import Toast, { useToast } from "../components/Toast.jsx";
 import { useFeature } from "../context/FeatureContext.jsx";
 
 const KPIS = [
@@ -24,7 +27,15 @@ export default function Propostas() {
   const conversaOn = useFeature("captura_conversa");
   const [importando, setImportando] = useState(false);
   const [gerando, setGerando] = useState(null);
+  const [mudando, setMudando] = useState(null);
   const [feedback, setFeedback] = useState(null);
+  const { toast, mostrar, fechar } = useToast();
+
+  const recarregar = () =>
+    buscarPropostasReais().then((res) => {
+      setPropostas(res.dados);
+      setReal(res.ok);
+    });
 
   const criarProcesso = async (p) => {
     if (!p.id) {
@@ -43,11 +54,43 @@ export default function Propostas() {
     navigate("/processos");
   };
 
-  useEffect(() => {
-    buscarPropostasReais().then((res) => {
-      setPropostas(res.dados);
-      setReal(res.ok);
+  const enviarProposta = async (p) => {
+    if (!p.id) return;
+    setMudando(p.numero);
+    setFeedback(null);
+    try {
+      await transicionar("proposta", p.id, "enviada");
+      setFeedback({ ok: true, texto: `Proposta ${p.numero} enviada.` });
+      await recarregar();
+    } catch (err) {
+      setFeedback({ ok: false, texto: err instanceof ErroAmigavel ? err.message : "Não consegui enviar a proposta." });
+    }
+    setMudando(null);
+  };
+
+  const arquivarProposta = async (p) => {
+    if (!p.id) return;
+    setMudando(p.numero);
+    try {
+      await transicionar("proposta", p.id, "arquivada");
+    } catch (err) {
+      setFeedback({ ok: false, texto: err instanceof ErroAmigavel ? err.message : "Não consegui arquivar a proposta." });
+      setMudando(null);
+      return;
+    }
+    setMudando(null);
+    await recarregar();
+    mostrar({
+      texto: `Proposta ${p.numero} arquivada.`,
+      aoDesfazer: async () => {
+        await transicionar("proposta", p.id, "rascunho");
+        await recarregar();
+      },
     });
+  };
+
+  useEffect(() => {
+    recarregar();
   }, []);
 
   return (
@@ -121,9 +164,24 @@ export default function Propostas() {
           <div>Ação</div>
         </div>
 
+        {propostas.length === 0 && (
+          <div style={{ padding: "8px 18px 24px 18px" }}>
+            <EmptyState
+              title="Nenhuma proposta ainda"
+              hint="Propostas aparecem aqui assim que você criar a primeira. Leva menos de 5 minutos."
+              action={
+                <PrimaryButton tag="propostas_criar_primeira" onClick={() => navigate("/propostas/nova")}>
+                  Criar primeira proposta
+                </PrimaryButton>
+              }
+            />
+          </div>
+        )}
         {pageItems.map((p) => {
           const st = STATUS[p.status];
           const podeGerarProcesso = p.status === "aceita";
+          const podeEnviar = p.status === "rascunho";
+          const podeArquivar = p.status === "rascunho";
           return (
             <div
               key={p.numero}
@@ -161,19 +219,21 @@ export default function Propostas() {
                 </span>
               </div>
               <div style={{ fontSize: 12.5, color: "#8A929E", fontVariantNumeric: "tabular-nums" }}>{p.data}</div>
-              <div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 {podeGerarProcesso && (
-                  <Tracked
-                    as="div"
-                    tag="proposta_criar_processo"
-                    data={{ numero: p.numero }}
-                    onClick={() => criarProcesso(p)}
-                    style={{ fontSize: 12.5, fontWeight: 500, color: "#0A4D9E", cursor: "pointer" }}
-                    onMouseOver={(e) => (e.currentTarget.style.textDecoration = "underline")}
-                    onMouseOut={(e) => (e.currentTarget.style.textDecoration = "none")}
-                  >
+                  <AcaoLink tag="proposta_criar_processo" data={{ numero: p.numero }} onClick={() => criarProcesso(p)}>
                     {gerando === p.numero ? "Gerando…" : "Criar processo"}
-                  </Tracked>
+                  </AcaoLink>
+                )}
+                {podeEnviar && (
+                  <AcaoLink tag="proposta_enviar" data={{ numero: p.numero }} onClick={() => enviarProposta(p)} disabled={!p.id}>
+                    {mudando === p.numero ? "Enviando…" : "Enviar proposta"}
+                  </AcaoLink>
+                )}
+                {podeArquivar && (
+                  <AcaoLink tag="proposta_arquivar" data={{ numero: p.numero }} onClick={() => arquivarProposta(p)} muted disabled={!p.id}>
+                    {mudando === p.numero ? "Arquivando…" : "Arquivar"}
+                  </AcaoLink>
                 )}
               </div>
             </div>
@@ -181,6 +241,29 @@ export default function Propostas() {
         })}
       </div>
       <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+      <Toast toast={toast} onFechar={fechar} />
     </div>
+  );
+}
+
+function AcaoLink({ children, onClick, tag, data, muted, disabled }) {
+  return (
+    <Tracked
+      as="div"
+      tag={tag}
+      data={data}
+      onClick={disabled ? undefined : onClick}
+      style={{
+        fontSize: 12.5,
+        fontWeight: 500,
+        color: muted ? "#98A0AC" : "#0A4D9E",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+      }}
+      onMouseOver={(e) => !disabled && (e.currentTarget.style.textDecoration = "underline")}
+      onMouseOut={(e) => (e.currentTarget.style.textDecoration = "none")}
+    >
+      {children}
+    </Tracked>
   );
 }
