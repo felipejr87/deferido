@@ -1,225 +1,134 @@
 import { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation, useParams } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Home, FileText, FolderOpen, Users, Wallet, Settings } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
-import { useFeatures } from "../context/FeatureContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useIsMobile } from "../hooks/useIsMobile.js";
-import { PROPOSTAS, PROCESSOS } from "../data/mock.js";
+import { buscarPropostasReais, buscarProcessosReais } from "../lib/data.js";
 import { routeMeta } from "../routesConfig.js";
 import { Tracked } from "./Tracked.jsx";
+import GlobalSearch from "./GlobalSearch.jsx";
+
+// Simplificação radical de navegação (Passo 1): o menu tinha 25 itens em 7
+// grupos espelhando os blocos da spec — não o trabalho de uma pessoa real.
+// Cinco coisas por dia: ver pendência, mandar proposta, tocar processo,
+// cuidar de cliente, olhar dinheiro. Tudo o mais mora em Configurações.
+function useMenuPrincipal() {
+  const [contadores, setContadores] = useState({ propostas: 0, processos: 0 });
+
+  useEffect(() => {
+    let vivo = true;
+    buscarPropostasReais().then((res) => {
+      if (!vivo) return;
+      const abertas = res.dados.filter((p) => p.status === "enviada" || p.status === "vista").length;
+      setContadores((c) => ({ ...c, propostas: abertas }));
+    });
+    buscarProcessosReais().then((res) => {
+      if (!vivo) return;
+      const ativos = res.dados.filter((p) => p.status !== "concluido" && p.status !== "cancelado").length;
+      setContadores((c) => ({ ...c, processos: ativos }));
+    });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  return [
+    { key: "inicio", label: "Hoje", path: "/inicio", Icone: Home },
+    { key: "propostas", label: "Propostas", path: "/propostas", Icone: FileText, badge: contadores.propostas || null },
+    { key: "processos", label: "Processos", path: "/processos", Icone: FolderOpen, badge: contadores.processos || null },
+    { key: "clientes", label: "Clientes", path: "/clientes", Icone: Users },
+    { key: "financeiro", label: "Dinheiro", path: "/financeiro", Icone: Wallet },
+  ];
+}
 
 export default function Layout() {
-  const { escritorio, catalogo } = useApp();
+  const { escritorio } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
-  const { flags } = useFeatures();
   const { session, logout } = useAuth();
   const isMobile = useIsMobile();
-  const [drawerAberto, setDrawerAberto] = useState(false);
-
-  // Troca de rota (inclusive pelo menu) sempre fecha o drawer no mobile —
-  // senão a próxima tela abre com o menu ainda em cima.
-  useEffect(() => {
-    setDrawerAberto(false);
-  }, [location.pathname]);
+  const menu = useMenuPrincipal();
 
   const meta = routeMeta(location.pathname, params.numero);
-
-  const groups = [
-    {
-      titulo: "Início",
-      items: [{ key: "inicio", label: "O que fazer agora", path: "/inicio" }],
-    },
-    {
-      titulo: "Comercial",
-      items: [
-        { key: "propostas", label: "Propostas", badge: String(PROPOSTAS.length), path: "/propostas" },
-        { key: "nova", label: "Nova proposta", path: "/propostas/nova" },
-        { key: "servicos", label: "Catálogo de serviços", badge: String(catalogo.servicos.length), path: "/servicos" },
-        { key: "publico", label: "Link da proposta", path: "/propostas/publica" },
-      ],
-    },
-    flags.fase2_processos && {
-      titulo: "Operação",
-      items: [
-        { key: "processos", label: "Processos", badge: String(PROCESSOS.length), path: "/processos" },
-        { key: "processo", label: "Processo #0087", path: "/processos/0087" },
-        { key: "portal", label: "Portal do cliente", path: "/processos/0087/portal" },
-        flags.b_documentos && { key: "arquivos", label: "Documentos e arquivos", path: "/arquivos" },
-        flags.b_assinatura && { key: "assinaturas", label: "Assinaturas eletrônicas", path: "/assinaturas" },
-      ].filter(Boolean),
-    },
-    (flags.b_cursos || flags.b_obrigacoes || flags.b_juridico) && {
-      titulo: "Outros serviços",
-      items: [
-        flags.b_cursos && { key: "cursos", label: "Cursos", path: "/cursos" },
-        flags.b_obrigacoes && { key: "obrigacoes", label: "Obrigações contábeis", path: "/obrigacoes" },
-        flags.b_juridico && { key: "juridico", label: "Modelos jurídicos", path: "/juridico" },
-      ].filter(Boolean),
-    },
-    (flags.c_notificacoes || flags.c_templates || flags.c_regua_cobranca) && {
-      titulo: "Comunicação",
-      items: [
-        flags.c_notificacoes && { key: "notificacoes", label: "Notificações", path: "/notificacoes" },
-        flags.c_templates && { key: "templates", label: "Templates de mensagem", path: "/templates-mensagem" },
-        flags.c_regua_cobranca && { key: "regua", label: "Régua de cobrança", path: "/regua-cobranca" },
-      ].filter(Boolean),
-    },
-    (flags.d_relatorios || flags.e_cnae_busca || flags.e_integracoes_config) && {
-      titulo: "Inteligência e integrações",
-      items: [
-        flags.d_relatorios && { key: "relatorios", label: "Relatórios", path: "/relatorios" },
-        flags.e_cnae_busca && { key: "cnae", label: "Consulta de CNAE", path: "/cnae" },
-        flags.e_integracoes_config && { key: "integracoes", label: "Integrações", path: "/integracoes" },
-      ].filter(Boolean),
-    },
-    (flags.a_usuarios || flags.a_auditoria || flags.a_lgpd) && {
-      titulo: "Configurações",
-      items: [
-        { key: "onboarding", label: "Onboarding", path: "/onboarding" },
-        flags.a_usuarios && { key: "usuarios", label: "Usuários e papéis", path: "/usuarios" },
-        flags.a_auditoria && { key: "auditoria", label: "Auditoria", path: "/auditoria" },
-        flags.a_lgpd && { key: "lgpd", label: "LGPD", path: "/lgpd" },
-      ].filter(Boolean),
-    },
-    (flags.f_super_admin || flags.f_planos) && {
-      titulo: "SaaS",
-      items: [
-        flags.f_super_admin && { key: "admin", label: "Super admin", path: "/admin" },
-        flags.f_planos && { key: "planos", label: "Planos", path: "/planos" },
-      ].filter(Boolean),
-    },
-  ].filter(Boolean);
+  const ativo = (path) => location.pathname === path || (path !== "/inicio" && location.pathname.startsWith(path));
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
-      {isMobile && drawerAberto && (
-        <div
-          onClick={() => setDrawerAberto(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(14,20,32,.5)", zIndex: 1150 }}
-        />
-      )}
-
-      <aside
-        style={{
-          width: 244,
-          maxWidth: "82vw",
-          flex: isMobile ? "0 0 auto" : "0 0 244px",
-          background: "#0E1420",
-          color: "#C8CFDA",
-          display: "flex",
-          flexDirection: "column",
-          padding: "20px 0",
-          overflowY: "auto",
-          ...(isMobile
-            ? {
-                position: "fixed",
-                top: 0,
-                left: 0,
-                bottom: 0,
-                zIndex: 1200,
-                transform: drawerAberto ? "translateX(0)" : "translateX(-100%)",
-                transition: "transform .2s ease",
-                boxShadow: drawerAberto ? "0 0 30px rgba(0,0,0,.4)" : "none",
-              }
-            : {}),
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px 20px 20px" }}>
-          <Tracked
-            as="div"
-            tag="nav_home"
-            onClick={() => navigate("/inicio")}
-            style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", minWidth: 0 }}
-          >
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                flex: "0 0 30px",
-                borderRadius: 5,
-                background: escritorio.corPrimaria,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#fff",
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: ".02em",
-              }}
-            >
+      {!isMobile && (
+        <aside style={{ width: 216, flex: "0 0 216px", background: "#0E1420", color: "#C8CFDA", display: "flex", flexDirection: "column", padding: "20px 0", overflowY: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 20px 24px 20px" }}>
+            <div style={{ width: 30, height: 30, flex: "0 0 30px", borderRadius: 5, background: escritorio.corPrimaria, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700 }}>
               OL
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-              <div style={{ color: "#fff", fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{escritorio.nome}</div>
-              <div style={{ fontSize: 11, color: "#6C7787" }}>Corporate Services</div>
-            </div>
-          </Tracked>
-          {isMobile && (
-            <Tracked as="div" tag="drawer_fechar" onClick={() => setDrawerAberto(false)} style={{ color: "#98A0AC", cursor: "pointer", flex: "0 0 auto", padding: 4 }}>
-              <X size={18} />
-            </Tracked>
-          )}
-        </div>
-
-        {groups.map((g) => (
-          <div key={g.titulo} style={{ padding: "10px 10px 4px 10px" }}>
-            <div style={{ fontSize: 10.5, color: "#5F6A7A", letterSpacing: ".06em", textTransform: "uppercase", padding: "4px 10px 6px 10px" }}>
-              {g.titulo}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {g.items.map((n) => {
-                const active = location.pathname === n.path;
-                return (
-                  <Tracked
-                    key={n.key}
-                    as="div"
-                    tag={`nav_${n.key}`}
-                    data={{ path: n.path }}
-                    className="ol-nav-item"
-                    onClick={() => navigate(n.path)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 8,
-                      padding: "8px 12px",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      fontSize: 13,
-                      background: active ? "#1A2333" : "transparent",
-                      color: active ? "#FFFFFF" : "#C8CFDA",
-                    }}
-                  >
-                    <span>{n.label}</span>
-                    {n.badge && <span style={{ fontSize: 11, color: "#5F6A7A", fontVariantNumeric: "tabular-nums" }}>{n.badge}</span>}
-                  </Tracked>
-                );
-              })}
-            </div>
+            <div style={{ color: "#fff", fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{escritorio.nome}</div>
           </div>
-        ))}
 
-        <div style={{ marginTop: "auto", padding: "16px 20px 0 20px", borderTop: "1px solid #1C2432" }}>
-          {session && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{session.nome}</div>
-                <div style={{ fontSize: 10.5, color: "#5F6A7A", textTransform: "capitalize" }}>{session.papel}</div>
-              </div>
-              <Tracked as="div" tag="logout" onClick={() => { logout(); navigate("/login"); }} style={{ fontSize: 11.5, color: "#98A0AC", cursor: "pointer", whiteSpace: "nowrap" }}>
-                Sair
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, padding: "0 10px" }}>
+            {menu.map((n) => (
+              <Tracked
+                key={n.key}
+                as="div"
+                tag={`nav_${n.key}`}
+                data={{ path: n.path }}
+                className="ol-nav-item"
+                onClick={() => navigate(n.path)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 11,
+                  padding: "10px 12px",
+                  borderRadius: 7,
+                  cursor: "pointer",
+                  fontSize: 13.5,
+                  background: ativo(n.path) ? "#1A2333" : "transparent",
+                  color: ativo(n.path) ? "#FFFFFF" : "#C8CFDA",
+                }}
+              >
+                <n.Icone size={17} strokeWidth={2} />
+                <span style={{ flex: 1 }}>{n.label}</span>
+                {n.badge > 0 && <span style={{ fontSize: 11, color: "#7A8CA8", fontVariantNumeric: "tabular-nums" }}>{n.badge}</span>}
               </Tracked>
-            </div>
-          )}
-          <div style={{ fontSize: 11, color: "#5F6A7A", letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 6 }}>Escopo ativo</div>
-          <div style={{ fontSize: 12, color: "#A8B2C0" }}>
-            {[flags.fase1_propostas && "Fase 1", flags.fase2_processos && "Fase 2"].filter(Boolean).join(" + ")}
+            ))}
           </div>
-        </div>
-      </aside>
+
+          <div style={{ marginTop: "auto", padding: "16px 10px 0 10px", borderTop: "1px solid #1C2432" }}>
+            <Tracked
+              as="div"
+              tag="nav_config"
+              onClick={() => navigate("/config")}
+              className="ol-nav-item"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 11,
+                padding: "10px 12px",
+                borderRadius: 7,
+                cursor: "pointer",
+                fontSize: 13,
+                background: location.pathname.startsWith("/config") ? "#1A2333" : "transparent",
+                color: location.pathname.startsWith("/config") ? "#FFFFFF" : "#C8CFDA",
+                marginBottom: 10,
+              }}
+            >
+              <Settings size={16} strokeWidth={2} />
+              <span>Configurações</span>
+            </Tracked>
+            {session && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{session.nome}</div>
+                  <div style={{ fontSize: 10.5, color: "#5F6A7A", textTransform: "capitalize" }}>{session.papel}</div>
+                </div>
+                <Tracked as="div" tag="logout" onClick={() => { logout(); navigate("/login"); }} style={{ fontSize: 11.5, color: "#98A0AC", cursor: "pointer", whiteSpace: "nowrap" }}>
+                  Sair
+                </Tracked>
+              </div>
+            )}
+          </div>
+        </aside>
+      )}
 
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
         <div
@@ -236,34 +145,24 @@ export default function Layout() {
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
             {isMobile && (
-              <Tracked
-                as="div"
-                tag="drawer_abrir"
-                onClick={() => setDrawerAberto(true)}
-                style={{ flex: "0 0 auto", padding: 6, cursor: "pointer", color: "#3C4453" }}
-              >
-                <Menu size={20} />
-              </Tracked>
+              <div style={{ width: 26, height: 26, flex: "0 0 26px", borderRadius: 5, background: escritorio.corPrimaria, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700 }}>
+                OL
+              </div>
             )}
             <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-              <div style={{ fontSize: 11, color: "#8A929E", letterSpacing: ".06em", textTransform: "uppercase" }}>
-                {meta.crumb}
-              </div>
-              <div
-                style={{
-                  fontSize: isMobile ? 15 : 19,
-                  fontWeight: 600,
-                  letterSpacing: "-.01em",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <div style={{ fontSize: 11, color: "#8A929E", letterSpacing: ".06em", textTransform: "uppercase" }}>{meta.crumb}</div>
+              <div style={{ fontSize: isMobile ? 15 : 19, fontWeight: 600, letterSpacing: "-.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {meta.titulo}
               </div>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <GlobalSearch />
+            {isMobile && (
+              <Tracked as="div" tag="nav_config_mobile" onClick={() => navigate("/config")} style={{ padding: 6, cursor: "pointer", color: "#3C4453" }}>
+                <Settings size={19} />
+              </Tracked>
+            )}
             {meta.modos && (
               <div style={{ display: "flex", border: "1px solid #DDE1E7", borderRadius: 7, overflow: "hidden", background: "#F7F8FA" }}>
                 {[
@@ -278,13 +177,7 @@ export default function Layout() {
                       tag={`modo_${m.key}`}
                       className="ol-modo"
                       onClick={() => navigate(m.path)}
-                      style={{
-                        padding: isMobile ? "6px 10px" : "7px 13px",
-                        fontSize: 12.5,
-                        cursor: "pointer",
-                        background: active ? "#FFFFFF" : "transparent",
-                        color: active ? "#14181F" : "#7A828F",
-                      }}
+                      style={{ padding: isMobile ? "6px 10px" : "7px 13px", fontSize: 12.5, cursor: "pointer", background: active ? "#FFFFFF" : "transparent", color: active ? "#14181F" : "#7A828F" }}
                     >
                       {m.label}
                     </Tracked>
@@ -299,16 +192,7 @@ export default function Layout() {
                 data={{ path: meta.acaoPrincipal.path }}
                 className="ol-btn-primary"
                 onClick={() => navigate(meta.acaoPrincipal.path)}
-                style={{
-                  padding: isMobile ? "8px 12px" : "9px 15px",
-                  borderRadius: 7,
-                  background: escritorio.corPrimaria,
-                  color: "#fff",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                }}
+                style={{ padding: isMobile ? "8px 12px" : "9px 15px", borderRadius: 7, background: escritorio.corPrimaria, color: "#fff", fontSize: 13, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}
               >
                 {meta.acaoPrincipal.rotulo}
               </Tracked>
@@ -316,9 +200,52 @@ export default function Layout() {
           </div>
         </div>
 
-        <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
+        <div style={{ flex: 1, minWidth: 0, overflow: "auto", paddingBottom: isMobile ? 62 : 0 }}>
           <Outlet />
         </div>
+
+        {isMobile && (
+          <div
+            style={{
+              position: "fixed",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 1100,
+              display: "flex",
+              background: "#0E1420",
+              borderTop: "1px solid #1C2432",
+              paddingBottom: "env(safe-area-inset-bottom, 0px)",
+            }}
+          >
+            {menu.map((n) => (
+              <Tracked
+                key={n.key}
+                as="div"
+                tag={`tab_${n.key}`}
+                data={{ path: n.path }}
+                onClick={() => navigate(n.path)}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 3,
+                  padding: "8px 4px 7px 4px",
+                  cursor: "pointer",
+                  color: ativo(n.path) ? "#FFFFFF" : "#7A8CA8",
+                  position: "relative",
+                }}
+              >
+                <n.Icone size={19} strokeWidth={ativo(n.path) ? 2.4 : 2} />
+                <span style={{ fontSize: 10 }}>{n.label}</span>
+                {n.badge > 0 && (
+                  <span style={{ position: "absolute", top: 4, right: "28%", width: 6, height: 6, borderRadius: "50%", background: "#E0913F" }} />
+                )}
+              </Tracked>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

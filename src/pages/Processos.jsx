@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { buscarProcessosReais } from "../lib/data.js";
 import { useApp } from "../context/AppContext.jsx";
 import { Tracked } from "../components/Tracked.jsx";
-import { usePagination, Pagination, Badge, StatusBadge, EstadoVazio } from "../components/ui.jsx";
+import { usePagination, Pagination, Badge, StatusBadge, EstadoVazio, Explicacao } from "../components/ui.jsx";
 
 const gridCols = "70px minmax(200px,1.7fr) minmax(140px,1fr) 150px 96px 100px";
 
@@ -23,6 +23,9 @@ export default function Processos() {
 
   return (
     <div className="ol-page">
+      <Explicacao chave="processos">
+        Cada serviço vendido vira um processo. Aqui você acompanha documentos, protocolo e prazo até o deferimento.
+      </Explicacao>
       <div style={{ marginBottom: 14 }}>
         <Badge bg={real ? "#EAF6EE" : "#F1F3F6"} fg={real ? "#1F6F4C" : "#5C6675"}>
           {real ? "dados do Postgres" : "dados de exemplo (offline)"}

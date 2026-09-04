@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase, supabaseConectado } from "../lib/supabaseClient.js";
 import { ESCRITORIO_ID } from "../config/escritorio.js";
+import { useApp } from "../context/AppContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { Page, Card, EstadoVazio, SecondaryButton, Carregando, Erro } from "../components/ui.jsx";
+import { Page, Card, EstadoVazio, SecondaryButton, Carregando, Erro, Explicacao } from "../components/ui.jsx";
 import { Tracked } from "../components/Tracked.jsx";
 import { track } from "../lib/analytics.js";
 import { traduzirErro } from "../lib/erros.js";
+import { buscarClientesReais, buscarPropostasReais } from "../lib/data.js";
 
 // Parte 2 da spec de fluxos: a tela inicial não é dashboard de números — é
 // uma fila de trabalho priorizada. fila_de_trabalho() é uma função SQL real
@@ -27,6 +29,96 @@ const CORES = {
   lead_frio: { emoji: "⚪", bg: "#F1F3F6", fg: "#5C6675" },
   cobranca_vencida: { emoji: "🔴", bg: "#FBEDEC", fg: "#A33F36" },
 };
+
+const CHAVE_PULAR_GUIA = "guia_primeiro_acesso_pulado";
+
+// Passo 6 da simplificação de navegação: substitui a rota /onboarding por
+// um guia embutido no topo do "Hoje", que some sozinho quando os 4 passos
+// terminam. Dois passos têm sinal real (cliente/proposta cadastrados no
+// banco); os outros dois (config do escritório, revisar catálogo) não têm
+// onde persistir "feito" no schema atual — usam localStorage, marcado
+// quando a pessoa de fato salva/visita essas telas (ver EscritorioConfig.jsx
+// e Servicos.jsx), honesto sobre ser um sinal local, não um dado real.
+function GuiaPrimeiroAcesso() {
+  const navigate = useNavigate();
+  const { escritorio } = useApp();
+  const [totalClientes, setTotalClientes] = useState(null);
+  const [totalPropostas, setTotalPropostas] = useState(null);
+  const [pulado, setPulado] = useState(() => {
+    try {
+      return localStorage.getItem(CHAVE_PULAR_GUIA) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const lido = (chave) => {
+    try {
+      return localStorage.getItem(chave) === "1";
+    } catch {
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    buscarClientesReais().then((res) => setTotalClientes(res.ok ? res.dados.length : 0));
+    buscarPropostasReais().then((res) => setTotalPropostas(res.ok ? res.dados.length : 0));
+  }, []);
+
+  if (pulado || totalClientes === null || totalPropostas === null) return null;
+
+  const passos = [
+    { chave: "escritorio", label: "Complete os dados do seu escritório", ajuda: "Nome e cor aparecem nas propostas que o cliente recebe", feito: lido("guia_passo_escritorio") || escritorio.nome !== "Open Legaliza", path: "/config/escritorio" },
+    { chave: "servicos", label: "Confira seu catálogo de serviços", ajuda: "Ajuste os valores para os seus", feito: lido("guia_passo_servicos"), path: "/servicos" },
+    { chave: "cliente", label: "Cadastre seu primeiro cliente", ajuda: "Digite só o CNPJ — o resto o sistema busca sozinho", feito: totalClientes > 0, path: "/clientes" },
+    { chave: "proposta", label: "Crie sua primeira proposta", ajuda: "Escolha o cliente, marque os serviços e envie o link", feito: totalPropostas > 0, path: "/propostas/nova" },
+  ];
+
+  const feitos = passos.filter((p) => p.feito).length;
+  if (feitos === passos.length) return null;
+
+  const pular = () => {
+    try {
+      localStorage.setItem(CHAVE_PULAR_GUIA, "1");
+    } catch {
+      // ignora
+    }
+    track("guia_primeiro_acesso_pular", { feitos });
+    setPulado(true);
+  };
+
+  return (
+    <Card style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+        <div style={{ fontSize: 13, fontWeight: 600 }}>Configurando seu sistema</div>
+        <div style={{ fontSize: 11.5, color: "#8A929E" }}>{feitos} de {passos.length}</div>
+      </div>
+      <div style={{ height: 4, borderRadius: 3, background: "#EDEFF3", overflow: "hidden" }}>
+        <div style={{ height: "100%", background: escritorio.corPrimaria, width: `${(feitos / passos.length) * 100}%` }} />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {passos.map((p) => (
+          <div key={p.chave} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: "1px solid #EEF0F3" }}>
+            <span style={{ fontSize: 14, color: p.feito ? "#1F6F4C" : "#B4BBC4" }}>{p.feito ? "✓" : "○"}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, textDecoration: p.feito ? "line-through" : "none", color: p.feito ? "#8A929E" : "#14181F" }}>{p.label}</div>
+              {!p.feito && <div style={{ fontSize: 11.5, color: "#98A0AC", marginTop: 1 }}>{p.ajuda}</div>}
+            </div>
+            {!p.feito && (
+              <SecondaryButton tag="guia_passo_ir" data={{ chave: p.chave }} onClick={() => navigate(p.path)}>
+                {p.chave === "cliente" ? "Cadastrar" : p.chave === "proposta" ? "Criar" : "Ajustar"}
+              </SecondaryButton>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ textAlign: "right" }}>
+        <Tracked as="div" tag="guia_pular" onClick={pular} style={{ fontSize: 12, color: "#98A0AC", cursor: "pointer", display: "inline-block" }}>
+          Pular por enquanto
+        </Tracked>
+      </div>
+    </Card>
+  );
+}
 
 export default function Inicio() {
   const navigate = useNavigate();
@@ -63,6 +155,12 @@ export default function Inicio() {
 
   return (
     <Page style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 640 }}>
+      <Explicacao chave="inicio">
+        Esta é sua lista de pendências. O sistema olha prazos, documentos e propostas e mostra o que precisa de você primeiro.
+      </Explicacao>
+
+      <GuiaPrimeiroAcesso />
+
       <div>
         <div style={{ fontSize: 20, fontWeight: 600 }}>
           {saudacao}{primeiroNome ? `, ${primeiroNome}` : ""}.

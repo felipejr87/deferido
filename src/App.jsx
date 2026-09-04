@@ -2,11 +2,14 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/Layout.jsx";
 import Login from "./pages/Login.jsx";
 import RecuperarSenha from "./pages/RecuperarSenha.jsx";
-import Onboarding from "./pages/Onboarding.jsx";
 import Inicio from "./pages/Inicio.jsx";
 import Propostas from "./pages/Propostas.jsx";
 import NovaProposta from "./pages/NovaProposta.jsx";
 import Servicos from "./pages/Servicos.jsx";
+import Clientes from "./pages/Clientes.jsx";
+import Financeiro from "./pages/Financeiro.jsx";
+import Configuracoes from "./pages/Configuracoes.jsx";
+import EscritorioConfig from "./pages/EscritorioConfig.jsx";
 import PropostaPublica from "./pages/PropostaPublica.jsx";
 import Processos from "./pages/Processos.jsx";
 import Processo from "./pages/Processo.jsx";
@@ -46,6 +49,12 @@ function RequireFeature({ flag, children }) {
   return on ? children : <Navigate to="/inicio" replace />;
 }
 
+// Passo 4 da simplificação de navegação: o painel de ~35 feature flags é
+// ferramenta de desenvolvimento — quem abre isso desiste do sistema. As
+// flags continuam funcionando (localStorage/querystring), só o painel
+// visual some da produção.
+const mostrarPainelDev = import.meta.env.DEV || new URLSearchParams(window.location.search).has("dev");
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -64,12 +73,16 @@ export default function App() {
           <Route path="/" element={<Navigate to="/inicio" replace />} />
           <Route path="/inicio" element={<Inicio />} />
           <Route path="/dashboard" element={<Navigate to="/relatorios" replace />} />
-          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/onboarding" element={<Navigate to="/inicio" replace />} />
 
           <Route path="/propostas" element={<Propostas />} />
           <Route path="/propostas/nova" element={<NovaProposta />} />
           <Route path="/propostas/publica" element={<PropostaPublica />} />
           <Route path="/servicos" element={<Servicos />} />
+          <Route path="/clientes" element={<Clientes />} />
+          <Route path="/financeiro" element={<Financeiro />} />
+          <Route path="/config" element={<Configuracoes />} />
+          <Route path="/config/escritorio" element={<EscritorioConfig />} />
 
           <Route path="/processos" element={<RequireFeature flag="fase2_processos"><Processos /></RequireFeature>} />
           <Route path="/processos/:numero" element={<RequireFeature flag="fase2_processos"><Processo /></RequireFeature>} />
@@ -101,7 +114,7 @@ export default function App() {
         </Route>
       </Routes>
       </ErrorBoundary>
-      <SettingsPanel />
+      {mostrarPainelDev && <SettingsPanel />}
       <CommandBar />
     </BrowserRouter>
   );

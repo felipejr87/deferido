@@ -299,3 +299,85 @@ export async function gerarProcessoDaProposta(propostaId) {
   if (!criados.length) return { ok: false, motivo: "Nenhum processo pôde ser criado." };
   return { ok: true, dados: criados };
 }
+
+// ============================================
+// CLIENTES / LEADS / FINANCEIRO — Simplificação radical de navegação
+// ============================================
+// Mock derivado das propostas de exemplo (não existia uma lista de
+// clientes antes desta tela) — mesmo padrão do resto do app: cai aqui só
+// se o Supabase não estiver conectado, nunca esconde erro real.
+const CLIENTES_MOCK = [...new Map(PROPOSTAS_MOCK.map((p) => [p.cliente, p])).values()].map((p, i) => ({
+  id: `mock-${i}`,
+  nome: p.cliente,
+  documento: p.doc,
+  telefone: null,
+  email: null,
+  processosAtivos: PROCESSOS_MOCK.filter((pr) => pr.cliente === p.cliente && pr.status !== "concluido").length,
+}));
+
+export async function buscarClientesReais() {
+  if (!supabaseConectado) return { ok: false, dados: CLIENTES_MOCK };
+  const { data, error } = await supabase
+    .from("clientes")
+    .select("id, nome, documento, telefone, email, processos(status)")
+    .eq("escritorio_id", ESCRITORIO_ID)
+    .eq("ativo", true)
+    .order("nome");
+  if (error) return { ok: false, dados: CLIENTES_MOCK, erro: motivoAmigavel(error) };
+  return {
+    ok: true,
+    dados: (data || []).map((c) => ({
+      id: c.id,
+      nome: c.nome,
+      documento: c.documento,
+      telefone: c.telefone,
+      email: c.email,
+      processosAtivos: (c.processos || []).filter((p) => p.status !== "concluido" && p.status !== "cancelado").length,
+    })),
+  };
+}
+
+export async function buscarLeadsReais() {
+  if (!supabaseConectado) return { ok: false, dados: [] };
+  const { data, error } = await supabase
+    .from("leads")
+    .select("id, nome, telefone, interesse, etapa, atualizado_em")
+    .eq("escritorio_id", ESCRITORIO_ID)
+    .not("etapa", "in", "(ganho,perdido)")
+    .order("atualizado_em", { ascending: false });
+  if (error) return { ok: false, dados: [], erro: motivoAmigavel(error) };
+  return { ok: true, dados: data || [] };
+}
+
+export async function criarClienteReal({ nome, documento, tipo, email, telefone }) {
+  if (!supabaseConectado) return { ok: false, motivo: "Supabase não conectado nesta sessão." };
+  const { data, error } = await supabase
+    .from("clientes")
+    .insert({ escritorio_id: ESCRITORIO_ID, nome, documento: documento || null, tipo, email: email || null, telefone: telefone || null })
+    .select("id, nome")
+    .single();
+  if (error) return { ok: false, motivo: motivoAmigavel(error) };
+  track("cliente_criar_sucesso", { cliente_id: data.id });
+  return { ok: true, id: data.id, nome: data.nome };
+}
+
+export async function buscarCobrancasReais() {
+  if (!supabaseConectado) return { ok: false, dados: [] };
+  const { data, error } = await supabase
+    .from("cobrancas")
+    .select("id, descricao, valor, vencimento, status, clientes(nome)")
+    .eq("escritorio_id", ESCRITORIO_ID)
+    .order("vencimento", { ascending: false });
+  if (error) return { ok: false, dados: [], erro: motivoAmigavel(error) };
+  return {
+    ok: true,
+    dados: (data || []).map((c) => ({
+      id: c.id,
+      cliente: c.clientes?.nome || "—",
+      descricao: c.descricao,
+      valor: Number(c.valor),
+      vencimento: c.vencimento,
+      status: c.status,
+    })),
+  };
+}

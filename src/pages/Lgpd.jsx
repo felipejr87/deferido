@@ -84,8 +84,7 @@ export default function Lgpd() {
       </Card>
 
       <div style={{ fontSize: 11.5, color: "#98A0AC" }}>
-        Consentimento com termos de uso e política de privacidade é registrado no onboarding, com data e hora
-        (ver Configurações → Onboarding).
+        Consentimento com termos de uso e política de privacidade é registrado no primeiro acesso, com data e hora.
       </div>
     </Page>
   );

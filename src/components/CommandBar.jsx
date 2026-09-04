@@ -51,16 +51,13 @@ export default function CommandBar() {
   const inputRef = useRef(null);
   const recRef = useRef(null);
 
+  // Ctrl+K/Cmd+K virou o atalho da busca global (GlobalSearch.jsx) — Passo
+  // 7 da simplificação de navegação pediu esse atalho pra busca, que é
+  // mais fundamental que comando em linguagem natural. Esta barra continua
+  // acessível pelo ícone flutuante, só perdeu o atalho de teclado.
   useEffect(() => {
     if (!on) return;
     const onKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setAberto((v) => {
-          if (!v) track("commandbar_abrir", { via: "atalho" });
-          return !v;
-        });
-      }
       if (e.key === "Escape") setAberto(false);
     };
     window.addEventListener("keydown", onKeyDown);

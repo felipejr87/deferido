@@ -5,7 +5,7 @@ import { buscarPropostasReais, gerarProcessoDaProposta } from "../lib/data.js";
 import { transicionar } from "../lib/fluxo.js";
 import { traduzirErro, ErroAmigavel } from "../lib/erros.js";
 import { Tracked } from "../components/Tracked.jsx";
-import { usePagination, Pagination, SecondaryButton, Badge, EstadoVazio, StatusBadge, Erro } from "../components/ui.jsx";
+import { usePagination, Pagination, SecondaryButton, Badge, EstadoVazio, StatusBadge, Erro, Explicacao } from "../components/ui.jsx";
 import ImportarConversa from "../components/ImportarConversa.jsx";
 import { useToast } from "../context/ToastContext.jsx";
 import { useFeature } from "../context/FeatureContext.jsx";
@@ -92,6 +92,9 @@ export default function Propostas() {
 
   return (
     <div className="ol-page">
+      <Explicacao chave="propostas">
+        Aqui ficam os orçamentos. Crie, envie por link e acompanhe se o cliente abriu. Quando ele aceita, vira processo automaticamente.
+      </Explicacao>
       <div style={{ marginBottom: 14, display: "flex", flexDirection: "column", gap: 10 }}>
         <Badge bg={real ? "#EAF6EE" : "#F1F3F6"} fg={real ? "#1F6F4C" : "#5C6675"}>
           {real ? "dados do Postgres" : "dados de exemplo (offline)"}

@@ -8,8 +8,7 @@
 // sistema antes disso, inclusive em Usuários/Auditoria, onde não faz
 // sentido nenhum e brigava com a própria ação da tela.
 export const ROUTES = {
-  "/inicio": { crumb: "Início", titulo: "O que fazer agora" },
-  "/onboarding": { crumb: "Configuração", titulo: "Onboarding do escritório" },
+  "/inicio": { crumb: "Início", titulo: "Hoje" },
 
   "/propostas": { crumb: "Comercial", titulo: "Propostas", acaoPrincipal: { rotulo: "Nova proposta", path: "/propostas/nova" } },
   "/propostas/nova": {
@@ -24,6 +23,10 @@ export const ROUTES = {
   },
   "/servicos": { crumb: "Configuração", titulo: "Catálogo de serviços" },
   "/processos": { crumb: "Operação", titulo: "Processos em andamento" },
+  "/clientes": { crumb: "Clientes", titulo: "Clientes" },
+  "/financeiro": { crumb: "Financeiro", titulo: "Dinheiro" },
+  "/config": { crumb: "Configurações", titulo: "Configurações" },
+  "/config/escritorio": { crumb: "Configurações", titulo: "Dados e cor do escritório" },
 
   "/arquivos": { crumb: "Operação", titulo: "Documentos e arquivos" },
   "/assinaturas": { crumb: "Operação", titulo: "Assinaturas eletrônicas" },

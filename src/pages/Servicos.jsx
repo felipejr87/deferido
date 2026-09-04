@@ -13,6 +13,13 @@ export default function Servicos() {
     buscarServicosReais().then((res) => {
       setServicos(res.dados);
       setReal(res.ok);
+      if (res.ok) {
+        try {
+          localStorage.setItem("guia_passo_servicos", "1");
+        } catch {
+          // ignora — só afeta o guia de primeiro acesso
+        }
+      }
     });
   }, []);
 

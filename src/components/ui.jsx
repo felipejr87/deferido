@@ -350,6 +350,54 @@ export function StatusBadge({ entidade, status }) {
   );
 }
 
+// ── Explica o que a tela é, some depois que o usuário fecha ──
+// (Simplificação de navegação, Passo 5) — mesmo padrão de "estado
+// vazio que ensina": não presume que a pessoa já sabe o que está vendo.
+export function Explicacao({ chave, children }) {
+  const [visivel, setVisivel] = useState(() => {
+    try {
+      return !localStorage.getItem(`explicacao_${chave}`);
+    } catch {
+      return true;
+    }
+  });
+  if (!visivel) return null;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 12,
+        alignItems: "flex-start",
+        padding: "12px 14px",
+        background: "#F5F8FF",
+        border: "1px solid #D6E4FF",
+        borderRadius: 8,
+        marginBottom: 16,
+      }}
+    >
+      <div style={{ flex: 1, fontSize: 13.5, color: "#0A4D9E", lineHeight: 1.55 }}>{children}</div>
+      <Tracked
+        as="button"
+        tag="explicacao_fechar"
+        data={{ chave }}
+        onClick={() => {
+          try {
+            localStorage.setItem(`explicacao_${chave}`, "1");
+          } catch {
+            // localStorage indisponível (aba privada etc.) — só não persiste, fecha do mesmo jeito.
+          }
+          setVisivel(false);
+        }}
+        style={{ background: "none", border: "none", cursor: "pointer", color: "#6B7480", fontSize: 18, lineHeight: 1, padding: 0 }}
+        title="Entendi"
+      >
+        ×
+      </Tracked>
+    </div>
+  );
+}
+
 export function Spinner({ size = 16 }) {
   return (
     <span
