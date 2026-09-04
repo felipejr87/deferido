@@ -4,7 +4,7 @@
 // nunca trava o fluxo, só degrada para a versão sem IA.
 import { supabase } from "./supabaseClient.js";
 import { track } from "./analytics.js";
-import { SERVICOS, CATS } from "../data/mock.js";
+import { CATS } from "../data/mock.js";
 
 async function invocar(nome, body) {
   if (!supabase) return { ok: false, erro: "Supabase não configurado (.env.local ausente)." };
@@ -30,20 +30,19 @@ export function extrairDocumentoIA({ arquivoBase64, mimeType, tipoDocumento }) {
   return invocar("extrair-documento", { arquivo_base64: arquivoBase64, mime_type: mimeType, tipo_documento: tipoDocumento });
 }
 
-function acharServicoPorNome(nome) {
-  if (!nome) return null;
-  const q = nome.toLowerCase();
-  return SERVICOS.find((s) => s.nome.toLowerCase().includes(q) || q.includes(s.nome.toLowerCase())) ?? null;
-}
-
 // Normaliza a resposta do assistente ({ferramenta,input}, chaves snake_case
 // do schema da spec) para o MESMO formato {tipo,descricao,dados} — com as
 // mesmas chaves camelCase — que o parser local (comandos.js) produz.
 // CommandBar.jsx trata as duas origens de forma idêntica depois disso.
-function normalizarAcaoIA(ferramenta, input) {
+//
+// `catalogo` é o useCatalogo() do chamador: o assistente recebe o catálogo
+// real (com uuid) no contexto e deve devolver servico_id exato (ver system
+// prompt em supabase/functions/assistente-comandos) — casamos por id
+// primeiro; nome só entra como fallback se o id vier ausente/errado.
+function normalizarAcaoIA(ferramenta, input, catalogo) {
   if (ferramenta === "criar_proposta") {
     const primeiroServico = input.servicos?.[0];
-    const servico = acharServicoPorNome(primeiroServico?.nome);
+    const servico = (primeiroServico?.servico_id && catalogo.porId(primeiroServico.servico_id)) || catalogo.porNome(primeiroServico?.nome);
     return {
       tipo: "criar_proposta",
       descricao: `Criar proposta — ${servico?.nome ?? primeiroServico?.nome ?? "serviço"}${input.cliente_nome ? " para " + input.cliente_nome : ""}`,
@@ -88,11 +87,11 @@ function normalizarAcaoIA(ferramenta, input) {
   return { tipo: ferramenta, descricao: ferramenta, dados: input };
 }
 
-export async function interpretarComandoIA(comando, contexto) {
+export async function interpretarComandoIA(comando, contexto, catalogo) {
   const res = await invocar("assistente-comandos", { comando, contexto });
   if (!res.ok) return res;
   if (res.tipo === "resposta") return { ok: true, resposta: res.texto };
   if (res.tipo !== "acao_proposta") return { ok: false, erro: "Resposta inesperada do assistente." };
 
-  return { ok: true, acao: { ...normalizarAcaoIA(res.ferramenta, res.input), origem: "ia" } };
+  return { ok: true, acao: { ...normalizarAcaoIA(res.ferramenta, res.input, catalogo), origem: "ia" } };
 }

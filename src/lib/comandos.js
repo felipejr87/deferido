@@ -7,19 +7,7 @@
 // Toda saída é uma PROPOSTA de ação — nunca aplica nada sozinho. Quem aplica
 // é o CommandBar depois que o operador confirma (mesma regra da versão com IA).
 
-import { SERVICOS, CATS } from "../data/mock.js";
-
-const SERVICO_POR_PALAVRA = [
-  { termos: ["mei"], id: 1 },
-  { termos: ["ltda", "me ", "abertura de empresa", "abrir empresa"], id: 2 },
-  { termos: ["alteração", "alteracao", "alterar contrato"], id: 3 },
-  { termos: ["encerramento", "encerrar", "baixa"], id: 4 },
-  { termos: ["alvará de funcionamento", "alvara de funcionamento", "alvará", "alvara"], id: 5 },
-  { termos: ["vigilância", "vigilancia"], id: 6 },
-  { termos: ["curso"], id: 7 },
-  { termos: ["contabilidade"], id: 8 },
-  { termos: ["jurídico", "juridico", "contrato de prestação"], id: 9 },
-];
+import { CATS } from "../data/mock.js";
 
 const ORGAO_POR_PALAVRA = [
   { termos: ["junta"], orgao: "Junta Comercial" },
@@ -28,9 +16,11 @@ const ORGAO_POR_PALAVRA = [
   { termos: ["vigilância", "vigilancia"], orgao: "Vigilância Sanitária" },
 ];
 
-function acharServico(textoLower) {
-  const found = SERVICO_POR_PALAVRA.find((s) => s.termos.some((t) => textoLower.includes(t)));
-  return found ? SERVICOS.find((s) => s.id === found.id) : null;
+// catalogo.porNome já casa por nome exato, substring, e por palavra-chave
+// de categoria — reaproveita a mesma lógica em vez de manter uma tabela
+// palavra→id separada (que ficava presa aos ids inteiros do mock).
+function acharServico(textoLower, catalogo) {
+  return catalogo.porNome(textoLower);
 }
 
 // "protocolei o processo 45 na junta, protocolo 2026/887766"
@@ -56,14 +46,14 @@ function tentarAtualizarProcesso(texto) {
 }
 
 // "joão ligou, quer abrir mei de eletricista, 11 98765 4321"
-function tentarCriarLead(texto) {
+function tentarCriarLead(texto, catalogo) {
   const lower = texto.toLowerCase();
   const telefoneMatch = texto.match(/(?:\+?55\s?)?\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4}/);
   const gatilho = /\bligou\b|\bquer\b.*\bmei\b|\bquer abrir\b|\blead\b/.test(lower);
   if (!telefoneMatch || !gatilho) return null;
 
   const nomeMatch = texto.match(/^([A-ZÀ-Ú][a-zà-ú]+)\b/);
-  const servico = acharServico(lower);
+  const servico = acharServico(lower, catalogo);
 
   return {
     tipo: "criar_lead",
@@ -79,9 +69,9 @@ function tentarCriarLead(texto) {
 
 // "abertura ltda pra Maria Silva, capital 10 mil, comércio de roupas em santo
 // andré, 1200 em 3x"
-function tentarCriarProposta(texto) {
+function tentarCriarProposta(texto, catalogo) {
   const lower = texto.toLowerCase();
-  const servico = acharServico(lower);
+  const servico = acharServico(lower, catalogo);
   if (!servico) return null;
 
   const nomeMatch = texto.match(/\bpr?a\s+([A-ZÀ-Úa-zà-ú][\w' -]{2,40}?)(?:,|\.|$)/i);
@@ -119,8 +109,10 @@ function tentarRegistrarDocumento(texto) {
   };
 }
 
-export function parseComando(texto) {
+// `catalogo` vem de useCatalogo() — precisa ser passado pelo chamador
+// (CommandBar) porque este módulo não é um componente React.
+export function parseComando(texto, catalogo) {
   const t = String(texto || "").trim();
   if (!t) return null;
-  return tentarAtualizarProcesso(t) || tentarRegistrarDocumento(t) || tentarCriarLead(t) || tentarCriarProposta(t) || null;
+  return tentarAtualizarProcesso(t) || tentarRegistrarDocumento(t) || tentarCriarLead(t, catalogo) || tentarCriarProposta(t, catalogo) || null;
 }

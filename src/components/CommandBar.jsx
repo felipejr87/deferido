@@ -9,7 +9,7 @@ import { interpretarComandoIA } from "../lib/edgeFunctions.js";
 import { supabaseConectado } from "../lib/supabaseClient.js";
 import { vozDisponivel, criarReconhecimento, normalizarNumeros } from "../lib/voz.js";
 import { track } from "../lib/analytics.js";
-import { brl, SERVICOS, PROPOSTAS, PROCESSOS } from "../data/mock.js";
+import { brl, PROPOSTAS, PROCESSOS } from "../data/mock.js";
 
 // Nível 4 (linguagem natural) + Nível 5 (voz), ver src/lib/comandos.js e
 // src/lib/voz.js: parser local por regras, sem chamada de IA — honesto sobre
@@ -38,6 +38,7 @@ export default function CommandBar() {
   const vozOn = useFeature("captura_voz");
   const navigate = useNavigate();
   const app = useApp();
+  const catalogo = app.catalogo;
   const { isAuthenticated } = useAuth();
 
   const [aberto, setAberto] = useState(false);
@@ -78,11 +79,11 @@ export default function CommandBar() {
 
     if (supabaseConectado) {
       const contexto = {
-        catalogoServicos: SERVICOS.map((s) => ({ id: s.id, nome: s.nome, valor: s.valor })),
+        catalogoServicos: catalogo.servicos.map((s) => ({ servico_id: s.id, nome: s.nome, valor: s.valor })),
         clientesRecentes: [{ nome: app.cliente.nome, telefone: app.cliente.tel }],
         processosAbertos: [{ numero: 87, cliente: "Ricardo Menezes", status: app.processoDemo.status }],
       };
-      const res = await interpretarComandoIA(texto, contexto);
+      const res = await interpretarComandoIA(texto, contexto, catalogo);
       setProcessando(false);
       if (res.ok && res.acao?.tipo === "buscar") {
         // Só leitura — mostra direto, sem card de confirmação.
@@ -106,7 +107,7 @@ export default function CommandBar() {
     }
 
     setProcessando(false);
-    const resultado = parseComando(texto);
+    const resultado = parseComando(texto, catalogo);
     track("comando_natural_processar", { texto, reconhecido: Boolean(resultado), origem: "local" });
     if (!resultado) {
       setNaoReconhecido(true);

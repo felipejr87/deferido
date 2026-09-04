@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { SERVICOS, CATS, brl } from "../data/mock.js";
+import { CATS, brl } from "../data/mock.js";
 import { useApp } from "../context/AppContext.jsx";
 import { useFeature } from "../context/FeatureContext.jsx";
 import { Tracked, TrackedInput } from "../components/Tracked.jsx";
@@ -27,6 +27,7 @@ export default function NovaProposta() {
   const isMobile = useIsMobile();
   const {
     escritorio,
+    catalogo,
     linhas,
     addItem,
     bumpItem,
@@ -102,10 +103,16 @@ export default function NovaProposta() {
     window.print();
   };
 
+  const itemMock = linhas.find((l) => l.servico._mock);
+
   const salvarRascunho = async () => {
     track("proposta_salvar_rascunho", { numero: NOVO_NUMERO });
     if (!supabaseConectado || linhas.length === 0) {
       setSalvo({ ok: false, motivo: !supabaseConectado ? "Supabase não conectado nesta sessão." : "Adicione ao menos um serviço antes de salvar." });
+      return;
+    }
+    if (itemMock) {
+      setSalvo({ ok: false, motivo: `"${itemMock.servico.nome}" não está no catálogo real (dados de exemplo offline) — recarregue a página ou cadastre o serviço em Catálogo antes de salvar.` });
       return;
     }
     setSalvando(true);
@@ -220,10 +227,12 @@ export default function NovaProposta() {
         <div style={{ background: "#fff", border: "1px solid #E4E7EC", borderRadius: 9, padding: 18 }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 600 }}>Catálogo de serviços</div>
-            <div style={{ fontSize: 12, color: "#8A929E" }}>Clique para adicionar à proposta</div>
+            <div style={{ fontSize: 12, color: "#8A929E" }}>
+              {catalogo.carregando ? "Carregando…" : "Clique para adicionar à proposta"}
+            </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 10 }}>
-            {SERVICOS.map((s) => {
+            {catalogo.servicos.map((s) => {
               const margemS = s.valor - s.custo;
               return (
                 <Tracked

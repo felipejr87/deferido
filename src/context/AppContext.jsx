@@ -1,7 +1,8 @@
 import { createContext, useContext, useMemo, useState, useCallback } from "react";
-import { SERVICOS, ETAPAS, DOCS } from "../data/mock.js";
+import { ETAPAS, DOCS } from "../data/mock.js";
 import { track } from "../lib/analytics.js";
 import { sha256Hex } from "../lib/hash.js";
+import { useCatalogo } from "../hooks/useCatalogo.js";
 
 const AppContext = createContext(null);
 
@@ -13,12 +14,13 @@ const DEFAULT_ESCRITORIO = {
 
 export function AppProvider({ children }) {
   const [escritorio, setEscritorio] = useState(DEFAULT_ESCRITORIO);
+  const catalogo = useCatalogo();
 
-  // Estado do construtor de proposta (equivalente ao state do DCLogic no mock)
-  const [itens, setItens] = useState([
-    { id: 2, qtd: 1 },
-    { id: 5, qtd: 1 },
-  ]);
+  // Estado do construtor de proposta (equivalente ao state do DCLogic no
+  // mock). Guarda o id do serviço (uuid real ou 'mock-N' no fallback) —
+  // começa vazio: os dois itens de demonstração fixos (ids 2 e 5 do mock)
+  // não têm mais sentido depois que o catálogo é carregado do banco.
+  const [itens, setItens] = useState([]);
   const [desconto, setDesconto] = useState("150");
   const [parcelas, setParcelas] = useState("3");
   const [cliente, setCliente] = useState({
@@ -48,13 +50,13 @@ export function AppProvider({ children }) {
     track("processo_atualizar_via_comando", patch);
   }, []);
 
-  const addItem = useCallback((id) => {
+  const addItem = useCallback((servicoId) => {
     setItens((prev) => {
-      const existing = prev.find((i) => i.id === id);
-      if (existing) return prev.map((i) => (i.id === id ? { ...i, qtd: i.qtd + 1 } : i));
-      return [...prev, { id, qtd: 1 }];
+      const existing = prev.find((i) => i.id === servicoId);
+      if (existing) return prev.map((i) => (i.id === servicoId ? { ...i, qtd: i.qtd + 1 } : i));
+      return [...prev, { id: servicoId, qtd: 1 }];
     });
-    track("proposta_item_adicionado", { servico_id: id });
+    track("proposta_item_adicionado", { servico_id: servicoId });
   }, []);
 
   const bumpItem = useCallback((id, delta) => {
@@ -79,11 +81,14 @@ export function AppProvider({ children }) {
 
   const linhas = useMemo(
     () =>
-      itens.map((i) => {
-        const servico = SERVICOS.find((s) => s.id === i.id);
-        return { ...i, servico, total: servico.valor * i.qtd, custo: servico.custo * i.qtd };
-      }),
-    [itens],
+      itens
+        .map((i) => {
+          const servico = catalogo.porId(i.id);
+          if (!servico) return null;
+          return { ...i, servico, total: servico.valor * i.qtd, custo: servico.custo * i.qtd };
+        })
+        .filter(Boolean),
+    [itens, catalogo],
   );
 
   const subtotal = useMemo(() => linhas.reduce((a, l) => a + l.total, 0), [linhas]);
@@ -118,6 +123,7 @@ export function AppProvider({ children }) {
   const value = {
     escritorio,
     setEscritorio,
+    catalogo,
     itens,
     linhas,
     addItem,

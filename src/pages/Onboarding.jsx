@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext.jsx";
-import { SERVICOS } from "../data/mock.js";
 import { Tracked, TrackedInput } from "../components/Tracked.jsx";
 import { Card, Field, inputStyle, PrimaryButton, SecondaryButton } from "../components/ui.jsx";
 import { track } from "../lib/analytics.js";
@@ -11,7 +10,7 @@ const PASSOS = ["Dados do escritório", "Catálogo de serviços", "Dados do cont
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { escritorio, setEscritorio } = useApp();
+  const { escritorio, setEscritorio, catalogo } = useApp();
   const [passo, setPasso] = useState(0);
   const [cep, setCep] = useState("");
   const [enderecoBusca, setEnderecoBusca] = useState(null);
@@ -22,7 +21,7 @@ export default function Onboarding() {
 
   const aplicarSeeds = () => {
     setSeedsAplicados(true);
-    track("onboarding_seeds_catalogo", { total: SERVICOS.length });
+    track("onboarding_seeds_catalogo", { total: catalogo.servicos.length });
   };
 
   const handleBuscarCep = async () => {
@@ -97,10 +96,10 @@ export default function Onboarding() {
           {passo === 1 && (
             <>
               <div style={{ fontSize: 13, color: "#6B7480" }}>
-                {SERVICOS.length} serviços típicos do setor já vêm prontos com etapas e documentos configurados — você só ajusta valores depois em Catálogo de serviços.
+                {catalogo.servicos.length} serviços típicos do setor já vêm prontos com etapas e documentos configurados — você só ajusta valores depois em Catálogo de serviços.
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 8 }}>
-                {SERVICOS.map((s) => (
+                {catalogo.servicos.map((s) => (
                   <div key={s.id} style={{ border: "1px solid #E4E7EC", borderRadius: 8, padding: "9px 11px", fontSize: 12.5 }}>
                     {s.nome}
                   </div>

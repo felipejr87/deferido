@@ -5,12 +5,12 @@ import { useApp } from "../context/AppContext.jsx";
 import { useFeatures } from "../context/FeatureContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useIsMobile } from "../hooks/useIsMobile.js";
-import { PROPOSTAS, PROCESSOS, SERVICOS } from "../data/mock.js";
+import { PROPOSTAS, PROCESSOS } from "../data/mock.js";
 import { routeMeta } from "../routesConfig.js";
 import { Tracked } from "./Tracked.jsx";
 
 export default function Layout() {
-  const { escritorio } = useApp();
+  const { escritorio, catalogo } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -33,7 +33,7 @@ export default function Layout() {
       items: [
         { key: "propostas", label: "Propostas", badge: String(PROPOSTAS.length), path: "/propostas" },
         { key: "nova", label: "Nova proposta", path: "/propostas/nova" },
-        { key: "servicos", label: "Catálogo de serviços", badge: String(SERVICOS.length), path: "/servicos" },
+        { key: "servicos", label: "Catálogo de serviços", badge: String(catalogo.servicos.length), path: "/servicos" },
         { key: "publico", label: "Link da proposta", path: "/propostas/publica" },
       ],
     },

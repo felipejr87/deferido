@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { STATUS, brl } from "../data/mock.js";
-import { buscarPropostasReais } from "../lib/data.js";
+import { buscarPropostasReais, gerarProcessoDaProposta } from "../lib/data.js";
 import { Tracked } from "../components/Tracked.jsx";
 import { usePagination, Pagination, SecondaryButton, Badge } from "../components/ui.jsx";
 import ImportarConversa from "../components/ImportarConversa.jsx";
@@ -23,6 +23,25 @@ export default function Propostas() {
   const { page, totalPages, setPage, pageItems } = usePagination(propostas, 4);
   const conversaOn = useFeature("captura_conversa");
   const [importando, setImportando] = useState(false);
+  const [gerando, setGerando] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+
+  const criarProcesso = async (p) => {
+    if (!p.id) {
+      navigate("/processos/0087");
+      return;
+    }
+    setGerando(p.numero);
+    setFeedback(null);
+    const res = await gerarProcessoDaProposta(p.id);
+    setGerando(null);
+    if (!res.ok) {
+      setFeedback({ ok: false, texto: `Não foi possível criar o processo de ${p.numero}: ${res.motivo}` });
+      return;
+    }
+    setFeedback({ ok: true, texto: `${res.dados.length} processo(s) criado(s) a partir de ${p.numero}.` });
+    navigate("/processos");
+  };
 
   useEffect(() => {
     buscarPropostasReais().then((res) => {
@@ -33,10 +52,15 @@ export default function Propostas() {
 
   return (
     <div className="ol-page">
-      <div style={{ marginBottom: 14 }}>
+      <div style={{ marginBottom: 14, display: "flex", flexDirection: "column", gap: 10 }}>
         <Badge bg={real ? "#EAF6EE" : "#F1F3F6"} fg={real ? "#1F6F4C" : "#5C6675"}>
           {real ? "dados do Postgres" : "dados de exemplo (offline)"}
         </Badge>
+        {feedback && (
+          <div style={{ fontSize: 12.5, color: feedback.ok ? "#1F6F4C" : "#A33F36", background: feedback.ok ? "#EAF6EE" : "#FBEDEC", borderRadius: 8, padding: "8px 10px" }}>
+            {feedback.texto}
+          </div>
+        )}
       </div>
       {conversaOn && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: importando ? 0 : 14 }}>
@@ -143,12 +167,12 @@ export default function Propostas() {
                     as="div"
                     tag="proposta_criar_processo"
                     data={{ numero: p.numero }}
-                    onClick={() => navigate("/processos/0087")}
+                    onClick={() => criarProcesso(p)}
                     style={{ fontSize: 12.5, fontWeight: 500, color: "#0A4D9E", cursor: "pointer" }}
                     onMouseOver={(e) => (e.currentTarget.style.textDecoration = "underline")}
                     onMouseOut={(e) => (e.currentTarget.style.textDecoration = "none")}
                   >
-                    Criar processo
+                    {gerando === p.numero ? "Gerando…" : "Criar processo"}
                   </Tracked>
                 )}
               </div>

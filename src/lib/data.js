@@ -2,12 +2,11 @@
 // pro array mock correspondente se o Supabase não estiver configurado ou a
 // consulta falhar — nunca deixa a tela em branco por causa disso.
 //
-// Escopo desta rodada: Catálogo de serviços, lista de Propostas e lista de
-// Processos passam a ler dado real; "Salvar rascunho" grava de verdade. O
-// construtor de proposta (itens/CommandBar/extração de conversa) continua
-// referenciando o catálogo mock por id inteiro — trocar isso por uuid em
-// toda a cadeia (AppContext, CommandBar, comandos.js, extracaoLocal.js) é
-// um refactor maior, fora do escopo desta passada.
+// O construtor de proposta (itens/CommandBar/extração de conversa) já
+// referencia o catálogo real por uuid via src/hooks/useCatalogo.js —
+// "Salvar rascunho" grava proposta_itens.servico_id de verdade, e uma
+// proposta aceita pode gerar processo com as etapas/documentos do
+// etapas_template/documentos_template do serviço (gerarProcessoDaProposta).
 import { supabase, supabaseConectado } from "./supabaseClient.js";
 import { ESCRITORIO_ID } from "../config/escritorio.js";
 import { SERVICOS as SERVICOS_MOCK, PROPOSTAS as PROPOSTAS_MOCK, PROCESSOS as PROCESSOS_MOCK, STATUS, brl } from "../data/mock.js";
@@ -52,13 +51,15 @@ export async function buscarPropostasReais() {
   if (!supabaseConectado) return { ok: false, dados: PROPOSTAS_MOCK };
   const { data, error } = await supabase
     .from("propostas")
-    .select("numero, cliente_nome, cliente_doc, total, status, criado_em, proposta_itens(descricao)")
+    .select("id, numero, cliente_id, cliente_nome, cliente_doc, total, status, criado_em, proposta_itens(descricao)")
     .eq("escritorio_id", ESCRITORIO_ID)
     .order("numero", { ascending: false });
   if (error || !data?.length) return { ok: false, dados: PROPOSTAS_MOCK };
   return {
     ok: true,
     dados: data.map((p) => ({
+      id: p.id,
+      clienteId: p.cliente_id,
       numero: formatarNumero(p.numero),
       cliente: p.cliente_nome,
       doc: p.cliente_doc || "",
@@ -131,6 +132,7 @@ export async function salvarPropostaReal({ cliente, linhas, subtotal, descontoNu
 
   const itens = linhas.map((l, idx) => ({
     proposta_id: proposta.id,
+    servico_id: l.servico._mock ? null : l.servico.id,
     descricao: l.servico.nome,
     quantidade: l.qtd,
     valor_unit: l.servico.valor,
@@ -145,4 +147,126 @@ export async function salvarPropostaReal({ cliente, linhas, subtotal, descontoNu
 
   track("proposta_salvar_real_sucesso", { numero: proposta.numero });
   return { ok: true, numero: formatarNumero(proposta.numero) };
+}
+
+// Acha um cliente existente do escritório pelo documento (CPF/CNPJ), ou cria
+// um novo a partir dos dados soltos da proposta. `processos.cliente_id` é
+// NOT NULL — propostas hoje só guardam cliente_nome/doc/email/telefone como
+// texto solto, então isso é o que garante ter um cliente real antes de gerar
+// o processo.
+async function acharOuCriarCliente(proposta) {
+  if (proposta.cliente_id) return { ok: true, id: proposta.cliente_id };
+
+  if (proposta.cliente_doc) {
+    const { data: existente } = await supabase
+      .from("clientes")
+      .select("id")
+      .eq("escritorio_id", ESCRITORIO_ID)
+      .eq("documento", proposta.cliente_doc)
+      .maybeSingle();
+    if (existente) return { ok: true, id: existente.id };
+  }
+
+  const { data: novo, error } = await supabase
+    .from("clientes")
+    .insert({
+      escritorio_id: ESCRITORIO_ID,
+      tipo: (proposta.cliente_doc || "").replace(/\D/g, "").length === 14 ? "pj" : "pf",
+      nome: proposta.cliente_nome,
+      documento: proposta.cliente_doc || null,
+      email: proposta.cliente_email || null,
+      telefone: proposta.cliente_telefone || null,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, motivo: error.message };
+  return { ok: true, id: novo.id };
+}
+
+function somarDias(dias) {
+  if (!dias) return null;
+  return new Date(Date.now() + dias * 86400000).toISOString().split("T")[0];
+}
+
+// Gera um processo por serviço com servico_id real na proposta aceita —
+// cada processo nasce com as etapas e documentos do etapas_template /
+// documentos_template do serviço (itens sem servico_id real, ou seja com
+// _mock: true no momento em que a proposta foi salva, são ignorados: não há
+// template de verdade pra eles).
+export async function gerarProcessoDaProposta(propostaId) {
+  if (!supabaseConectado) return { ok: false, motivo: "Supabase não conectado nesta sessão." };
+
+  const { data: proposta, error: erroProposta } = await supabase
+    .from("propostas")
+    .select("id, numero, cliente_id, cliente_nome, cliente_doc, cliente_email, cliente_telefone")
+    .eq("id", propostaId)
+    .single();
+  if (erroProposta) return { ok: false, motivo: erroProposta.message };
+
+  const { data: itens, error: erroItens } = await supabase
+    .from("proposta_itens")
+    .select("servico_id, descricao, servicos(nome, prazo_dias, etapas_template, documentos_template)")
+    .eq("proposta_id", propostaId)
+    .not("servico_id", "is", null);
+  if (erroItens) return { ok: false, motivo: erroItens.message };
+  if (!itens?.length) return { ok: false, motivo: "Nenhum item desta proposta tem serviço do catálogo real — não há template pra gerar processo." };
+
+  const cliente = await acharOuCriarCliente(proposta);
+  if (!cliente.ok) return cliente;
+  if (!proposta.cliente_id) {
+    await supabase.from("propostas").update({ cliente_id: cliente.id }).eq("id", propostaId);
+  }
+
+  const criados = [];
+  for (const item of itens) {
+    const svc = item.servicos;
+    if (!svc) continue;
+
+    const { data: proc, error: erroProc } = await supabase
+      .from("processos")
+      .insert({
+        escritorio_id: ESCRITORIO_ID,
+        cliente_id: cliente.id,
+        servico_id: item.servico_id,
+        proposta_id: propostaId,
+        titulo: `${svc.nome} — ${proposta.cliente_nome}`,
+        status: "aguardando_docs",
+        prazo_estimado: somarDias(svc.prazo_dias),
+      })
+      .select()
+      .single();
+    if (erroProc) {
+      track("processo_gerar_erro", { erro: erroProc.message });
+      continue;
+    }
+
+    const etapas = (svc.etapas_template || []).map((e, i) => ({
+      processo_id: proc.id,
+      nome: e.nome,
+      ordem: i,
+      prazo: somarDias(e.prazo_dias),
+    }));
+    if (etapas.length) await supabase.from("processo_etapas").insert(etapas);
+
+    const docs = (svc.documentos_template || []).map((d) => ({
+      processo_id: proc.id,
+      nome: d.nome,
+      obrigatorio: d.obrigatorio !== false,
+    }));
+    if (docs.length) await supabase.from("processo_documentos").insert(docs);
+
+    await supabase.from("processo_eventos").insert({
+      processo_id: proc.id,
+      tipo: "criado",
+      descricao: `Processo aberto a partir da proposta ${formatarNumero(proposta.numero)}`,
+      visivel_cliente: true,
+    });
+
+    track("processo_gerar_sucesso", { proposta_numero: proposta.numero, servico: svc.nome });
+    criados.push(proc);
+  }
+
+  if (!criados.length) return { ok: false, motivo: "Nenhum processo pôde ser criado." };
+  return { ok: true, dados: criados };
 }

@@ -15,21 +15,22 @@ Maria Silva
 Oi, vi vocês no Instagram. Quero abrir um MEI de cabeleireira.
 Meu número é 11 98877-6655`;
 
-// servico_sugerido da IA é um enum fixo (spec); local usa o id do catálogo
-// direto. Mapeia os dois pro mesmo servicoId antes de exibir.
-const ENUM_PARA_SERVICO_ID = {
-  abertura_mei: 1,
-  abertura_ltda: 2,
-  alteracao: 3,
-  encerramento: 4,
-  alvara: 5,
-  contabilidade: 8,
+// servico_sugerido da IA é um enum fixo (supabase/functions/extrair-lead).
+// Mapeia pra um termo de busca e casa contra o catálogo real via
+// catalogo.porNome — em vez de um id fixo do mock.
+const ENUM_PARA_TERMO = {
+  abertura_mei: "mei",
+  abertura_ltda: "ltda",
+  alteracao: "alteracao",
+  encerramento: "encerramento",
+  alvara: "alvara",
+  contabilidade: "contabilidade",
   outro: null,
 };
 
 export default function ImportarConversa({ onFechar }) {
   const navigate = useNavigate();
-  const { setCliente, addItem } = useApp();
+  const { setCliente, addItem, catalogo } = useApp();
   const [conversa, setConversa] = useState("");
   const [extraido, setExtraido] = useState(null);
   const [extraindo, setExtraindo] = useState(false);
@@ -40,12 +41,14 @@ export default function ImportarConversa({ onFechar }) {
       const res = await extrairLeadIA(conversa);
       if (res.ok) {
         const d = res.dados;
+        const termo = ENUM_PARA_TERMO[d.servico_sugerido];
+        const servico = termo ? catalogo.porNome(termo) : null;
         setExtraido({
           nome: d.nome,
           telefone: d.telefone,
           email: d.email,
           servicoSugerido: d.servico_sugerido,
-          servicoId: ENUM_PARA_SERVICO_ID[d.servico_sugerido] ?? null,
+          servicoId: servico?.id ?? null,
           interesse: d.interesse,
           observacoes: d.observacoes,
           proximoPasso: d.proximo_passo,
@@ -58,7 +61,7 @@ export default function ImportarConversa({ onFechar }) {
       track("conversa_extrair_ia_falhou", { erro: res.erro });
     }
     // Fallback local — sem IA conectada ou chamada falhou.
-    const resultado = extrairLeadDaConversa(conversa);
+    const resultado = extrairLeadDaConversa(conversa, catalogo);
     track("conversa_extrair", { metodo: resultado.metodo });
     setExtraido(resultado);
     setExtraindo(false);

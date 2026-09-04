@@ -1,13 +1,15 @@
-import { PROPOSTAS, PROCESSOS, SERVICOS, CATS, STATUS, brl } from "../data/mock.js";
+import { PROPOSTAS, PROCESSOS, CATS, STATUS, brl } from "../data/mock.js";
 import { Page, Card, SectionTitle, Table, Th, Row, SecondaryButton } from "../components/ui.jsx";
 import { downloadCsv } from "../lib/export.js";
 import { track } from "../lib/analytics.js";
+import { useApp } from "../context/AppContext.jsx";
 
 const gridColsFat = "minmax(160px,1.4fr) 100px 100px";
 const gridColsConv = "140px 90px 90px 90px";
 
 export default function Relatorios() {
-  const porServico = SERVICOS.map((s) => {
+  const { catalogo } = useApp();
+  const porServico = catalogo.servicos.map((s) => {
     const propostas = PROPOSTAS.filter((p) => p.servicos.toLowerCase().includes(s.nome.toLowerCase().split(" ")[0]));
     const faturamento = propostas.filter((p) => p.status === "aceita").reduce((a, p) => a + p.total, 0);
     return { servico: s.nome, categoria: CATS[s.cat], faturamento };

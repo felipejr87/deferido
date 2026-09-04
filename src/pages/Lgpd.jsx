@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useApp } from "../context/AppContext.jsx";
-import { PROPOSTAS, PROCESSOS, SERVICOS } from "../data/mock.js";
+import { PROPOSTAS, PROCESSOS } from "../data/mock.js";
 import { USUARIOS } from "../data/usuarios.js";
 import { Page, Card, SectionTitle, PrimaryButton, SecondaryButton, Field, inputStyle } from "../components/ui.jsx";
 import { TrackedInput } from "../components/Tracked.jsx";
@@ -8,12 +8,12 @@ import { track } from "../lib/analytics.js";
 import { downloadJson } from "../lib/export.js";
 
 export default function Lgpd() {
-  const { escritorio, cliente } = useApp();
+  const { escritorio, cliente, catalogo } = useApp();
   const [clienteAlvo, setClienteAlvo] = useState(cliente.nome);
   const [anonimizado, setAnonimizado] = useState(false);
 
   const exportarEscritorio = () => {
-    const payload = { escritorio, usuarios: USUARIOS, servicos: SERVICOS, propostas: PROPOSTAS, processos: PROCESSOS, exportado_em: new Date().toISOString() };
+    const payload = { escritorio, usuarios: USUARIOS, servicos: catalogo.servicos, propostas: PROPOSTAS, processos: PROCESSOS, exportado_em: new Date().toISOString() };
     downloadJson(`open-legaliza-export-${escritorio.id}`, payload);
     track("lgpd_export", { escopo: "escritorio" });
   };

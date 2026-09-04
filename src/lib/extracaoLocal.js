@@ -6,21 +6,21 @@
 // e-mail, e sugere serviço por palavra-chave. É real, só é burro — o
 // operador sempre revisa antes de salvar (mesma UX do card de confirmação).
 
-import { SERVICOS } from "../data/mock.js";
-
 const TELEFONE_RE = /(?:\+?55\s?)?\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4}/;
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/;
 
+// Termos que disparam cada palpite — casados contra o catálogo real via
+// catalogo.porNome (que já tem seu próprio fallback por categoria).
 const PALAVRAS_SERVICO = [
-  { termos: ["mei"], servicoId: 1 },
-  { termos: ["ltda", "abrir empresa", "abertura de empresa", "sócio", "socios"], servicoId: 2 },
-  { termos: ["alterar", "alteração", "mudar sócio", "trocar endereço"], servicoId: 3 },
-  { termos: ["encerrar", "fechar empresa", "baixa"], servicoId: 4 },
-  { termos: ["alvará", "funcionamento"], servicoId: 5 },
-  { termos: ["vigilância", "vigilancia sanitária"], servicoId: 6 },
-  { termos: ["curso"], servicoId: 7 },
-  { termos: ["contabilidade", "contador"], servicoId: 8 },
-  { termos: ["contrato", "jurídico", "advogado"], servicoId: 9 },
+  "mei",
+  "ltda", "abrir empresa", "abertura de empresa", "sócio", "socios",
+  "alterar", "alteração", "mudar sócio", "trocar endereço",
+  "encerrar", "fechar empresa", "baixa",
+  "alvará", "funcionamento",
+  "vigilância", "vigilancia sanitária",
+  "curso",
+  "contabilidade", "contador",
+  "contrato", "jurídico", "advogado",
 ];
 
 function adivinharNome(texto) {
@@ -34,13 +34,14 @@ function adivinharNome(texto) {
   return null;
 }
 
-export function extrairLeadDaConversa(textoConversa) {
+export function extrairLeadDaConversa(textoConversa, catalogo) {
   const texto = String(textoConversa || "");
   const telefoneMatch = texto.match(TELEFONE_RE);
   const emailMatch = texto.match(EMAIL_RE);
 
-  const servicoEncontrado = PALAVRAS_SERVICO.find((p) => p.termos.some((t) => texto.toLowerCase().includes(t)));
-  const servico = servicoEncontrado ? SERVICOS.find((s) => s.id === servicoEncontrado.servicoId) : null;
+  const lower = texto.toLowerCase();
+  const termoEncontrado = PALAVRAS_SERVICO.find((t) => lower.includes(t));
+  const servico = termoEncontrado ? catalogo.porNome(termoEncontrado) : null;
 
   return {
     nome: adivinharNome(texto),

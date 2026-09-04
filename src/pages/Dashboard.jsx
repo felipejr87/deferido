@@ -1,7 +1,8 @@
-import { PROPOSTAS, PROCESSOS, SERVICOS, PSTATUS, brl } from "../data/mock.js";
+import { PROPOSTAS, PROCESSOS, PSTATUS, brl } from "../data/mock.js";
 import { OBRIGACOES } from "../data/blocoB.js";
 import { Page, Card, SectionTitle } from "../components/ui.jsx";
 import BarRanking from "../components/BarRanking.jsx";
+import { useApp } from "../context/AppContext.jsx";
 
 function Kpi({ label, valor, nota }) {
   return (
@@ -14,6 +15,7 @@ function Kpi({ label, valor, nota }) {
 }
 
 export default function Dashboard() {
+  const { catalogo } = useApp();
   const propostasAguardando = PROPOSTAS.filter((p) => ["enviada", "vista"].includes(p.status));
   const processosParados = PROCESSOS.filter((p) => p.parado >= 5);
   const contagemPorStatus = PROCESSOS.reduce((acc, p) => {
@@ -22,7 +24,8 @@ export default function Dashboard() {
   }, {});
   const obrigacoesVencendo = OBRIGACOES.filter((o) => o.status === "pendente" || o.status === "atrasada");
 
-  const margemPorServico = SERVICOS.filter((s) => s.custo > 0)
+  const margemPorServico = catalogo.servicos
+    .filter((s) => s.custo > 0)
     .map((s) => ({ label: s.nome, value: s.valor - s.custo }))
     .sort((a, b) => b.value - a.value);
 
