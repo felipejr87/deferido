@@ -18,14 +18,18 @@ export function traduzirErro(erro) {
   const msg = erro?.message || String(erro);
   const code = erro?.code;
 
-  if (code === "23505") return new ErroAmigavel("Esse registro já existe", "Parece que alguém já cadastrou isso. Procure na lista antes de criar de novo.");
+  if (code === "23505" || msg.includes("duplicate key")) return new ErroAmigavel("Esse registro já existe", "Procure na lista antes de criar de novo.");
   if (code === "23503") return new ErroAmigavel("Não dá para apagar", "Este item está sendo usado em outro lugar do sistema.");
+  if (code === "23514") return new ErroAmigavel("Algum campo está com valor inválido", "Confira os campos preenchidos e tente de novo.");
+  if (code === "PGRST116") return new ErroAmigavel("Não encontrei esse registro", "Ele pode ter sido apagado ou você não tem acesso a ele.");
+  if (code === "42883" || code === "PGRST202" || (msg.includes("function") && (msg.includes("does not exist") || msg.includes("Could not find"))))
+    return new ErroAmigavel("Essa função ainda não está disponível", "O sistema pode estar em atualização. Tente de novo em alguns minutos.");
   if (code === "42501" || msg.includes("row-level security"))
     return new ErroAmigavel("Você não tem acesso a isso", "Se acha que deveria ter, fale com o responsável do escritório.");
   if (msg.includes("JWT") || msg.includes("expired"))
     return new ErroAmigavel("Sua sessão expirou", "Entre de novo para continuar.", [{ rotulo: "Entrar", onClick: () => (window.location.href = "/login") }]);
-  if (msg.includes("fetch") || msg.includes("network") || msg.includes("Failed to fetch"))
-    return new ErroAmigavel("Sem conexão", "Verifique sua internet. Seu trabalho não foi perdido.");
+  if (msg.includes("Failed to fetch") || msg.includes("fetch") || msg.includes("network"))
+    return new ErroAmigavel("Não consegui falar com o servidor", "Verifique sua internet. Nada do que você digitou foi perdido.", [{ rotulo: "Tentar de novo", onClick: () => window.location.reload() }]);
 
   return new ErroAmigavel("Alguma coisa deu errado", "Tente de novo. Se continuar, avise o suporte.", [{ rotulo: "Tentar de novo", onClick: () => window.location.reload() }]);
 }

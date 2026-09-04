@@ -29,6 +29,7 @@ import SuperAdmin from "./pages/SuperAdmin.jsx";
 import Planos from "./pages/Planos.jsx";
 import SettingsPanel from "./components/SettingsPanel.jsx";
 import CommandBar from "./components/CommandBar.jsx";
+import { ErrorBoundary } from "./components/ErrorBoundary.jsx";
 import { useFeature } from "./context/FeatureContext.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 
@@ -48,6 +49,7 @@ function RequireFeature({ flag, children }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <ErrorBoundary>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/recuperar-senha" element={<RecuperarSenha />} />
@@ -98,6 +100,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/inicio" replace />} />
         </Route>
       </Routes>
+      </ErrorBoundary>
       <SettingsPanel />
       <CommandBar />
     </BrowserRouter>

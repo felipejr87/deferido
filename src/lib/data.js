@@ -11,6 +11,15 @@ import { supabase, supabaseConectado } from "./supabaseClient.js";
 import { ESCRITORIO_ID } from "../config/escritorio.js";
 import { SERVICOS as SERVICOS_MOCK, PROPOSTAS as PROPOSTAS_MOCK, PROCESSOS as PROCESSOS_MOCK, STATUS, brl } from "../data/mock.js";
 import { track } from "./analytics.js";
+import { traduzirErro } from "./erros.js";
+
+// `motivo` nas funções abaixo é texto pra mostrar direto na tela (Parte
+// 0.10) — nunca o erro cru do driver do Postgres. O erro técnico completo
+// ainda vai pro track(), só não pro usuário.
+function motivoAmigavel(error) {
+  const amigavel = traduzirErro(error);
+  return amigavel.motivo ? `${amigavel.titulo} ${amigavel.motivo}` : amigavel.titulo;
+}
 
 function mapServicoReal(row) {
   return {
@@ -131,7 +140,7 @@ export async function salvarPropostaReal({ propostaId, cliente, linhas, subtotal
     const { data, error } = await supabase.from("propostas").update(payload).eq("id", propostaId).select("id, numero").single();
     if (error) {
       track("proposta_salvar_real_erro", { erro: error.message });
-      return { ok: false, motivo: error.message };
+      return { ok: false, motivo: motivoAmigavel(error) };
     }
     proposta = data;
     await supabase.from("proposta_itens").delete().eq("proposta_id", proposta.id);
@@ -143,7 +152,7 @@ export async function salvarPropostaReal({ propostaId, cliente, linhas, subtotal
       .single();
     if (error) {
       track("proposta_salvar_real_erro", { erro: error.message });
-      return { ok: false, motivo: error.message };
+      return { ok: false, motivo: motivoAmigavel(error) };
     }
     proposta = data;
   }
@@ -161,7 +170,7 @@ export async function salvarPropostaReal({ propostaId, cliente, linhas, subtotal
     const { error: erroItens } = await supabase.from("proposta_itens").insert(itens);
     if (erroItens) {
       track("proposta_salvar_itens_erro", { erro: erroItens.message });
-      return { ok: false, motivo: erroItens.message };
+      return { ok: false, motivo: motivoAmigavel(erroItens) };
     }
   }
 
@@ -200,7 +209,7 @@ async function acharOuCriarCliente(proposta) {
     .select("id")
     .single();
 
-  if (error) return { ok: false, motivo: error.message };
+  if (error) return { ok: false, motivo: motivoAmigavel(error) };
   return { ok: true, id: novo.id };
 }
 
@@ -222,14 +231,14 @@ export async function gerarProcessoDaProposta(propostaId) {
     .select("id, numero, cliente_id, cliente_nome, cliente_doc, cliente_email, cliente_telefone")
     .eq("id", propostaId)
     .single();
-  if (erroProposta) return { ok: false, motivo: erroProposta.message };
+  if (erroProposta) return { ok: false, motivo: motivoAmigavel(erroProposta) };
 
   const { data: itens, error: erroItens } = await supabase
     .from("proposta_itens")
     .select("servico_id, descricao, servicos(nome, prazo_dias, etapas_template, documentos_template)")
     .eq("proposta_id", propostaId)
     .not("servico_id", "is", null);
-  if (erroItens) return { ok: false, motivo: erroItens.message };
+  if (erroItens) return { ok: false, motivo: motivoAmigavel(erroItens) };
   if (!itens?.length) return { ok: false, motivo: "Nenhum item desta proposta tem serviço do catálogo real — não há template pra gerar processo." };
 
   const cliente = await acharOuCriarCliente(proposta);
